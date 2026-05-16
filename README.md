@@ -1,6 +1,5 @@
-Here is a professional and well-structured `README.md` for your GitHub repository. It explains the logic behind the project and how to get it running.
 
----
+
 
 # Movie Recommendation System
 
