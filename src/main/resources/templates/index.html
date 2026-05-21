@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MovieMatch | Discover Your Next Favorite Film</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page-wrap">
+    <header class="hero">
+        <p class="eyebrow">MovieMatch</p>
+        <h1>Find a movie that fits your vibe.</h1>
+        <p class="subtitle">A clean, fast recommendation experience built with Spring Boot + Gradle.</p>
+
+        <form method="get" action="/" class="search-form">
+            <input type="text" name="genre" th:value="${genre}" placeholder="Try: Sci-Fi, Action, Drama...">
+            <button type="submit">Get Recommendations</button>
+        </form>
+    </header>
+
+    <main>
+        <section class="results-header">
+            <h2 th:text="${#strings.isEmpty(genre) ? 'Top Picks for You' : 'Best ' + genre + ' Movies'}">Top Picks for You</h2>
+        </section>
+
+        <section class="card-grid">
+            <article class="movie-card" th:each="movie : ${recommendations}">
+                <div class="movie-meta">
+                    <span th:text="${movie.genre()}">Genre</span>
+                    <span th:text="${movie.releaseYear()}">Year</span>
+                </div>
+                <h3 th:text="${movie.title()}">Movie title</h3>
+                <p class="rating">⭐ <span th:text="${movie.rating()}">8.8</span>/10</p>
+            </article>
+        </section>
+    </main>
+</div>
+</body>
+</html>
