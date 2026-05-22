@@ -1,78 +1,133 @@
+# CineMatch: Hybrid Movie Recommendation System
 
+CineMatch is a modern, full-stack **Hybrid Movie Recommendation System** that leverages User-Based Collaborative Filtering, Content-Based Filtering, and integration with **Oracle APEX REST (ORDS)** to deliver high-quality, personalized film suggestions. It features a premium, responsive glassmorphism dark UI with real-time ratings, reviews, watchlist management, and TMDB media integration.
 
-
-# Movie Recommendation System
-
-A lightweight **Java-based recommendation engine** that uses User-Based Collaborative Filtering to suggest movies. This project implements the **Cosine Similarity** metric to analyze user behavior and predict ratings for films a user hasn't seen yet.
+---
 
 ## 🚀 Features
 
-* **User-Based Collaborative Filtering:** Identifies users with similar tastes.
-* **Cosine Similarity Logic:** Mathematically evaluates the distance between user rating vectors.
-* **Weighted Score Prediction:** Ranks recommendations based on the similarity strength of other users.
-* **Modular Architecture:** Clean separation between Data Models and the Recommendation Service.
+*   **Hybrid Recommendation Engine**:
+    *   **Oracle APEX Integration (Primary)**: Queries an Oracle Database via APEX REST endpoints (`ORDS`) for advanced, database-level hybrid recommendations.
+    *   **Local Java Engine (Fallback)**: Combines User-Based Collaborative Filtering (using Cosine Similarity on user rating vectors) and Content-Based Filtering (genre-based preference matching).
+    *   **Cold-Start Mitigation**: Automatically serves popular movie recommendations for new users with no rating history.
+*   **Interactive Web UI**:
+    *   Sleek Dark Glassmorphism design with responsive grid layouts.
+    *   Dynamic spotlight movie banners and category/genre quick filters.
+    *   Real-time search and instant recommendation updates.
+    *   Interactive rating modals allowing users to leave star ratings and reviews.
+    *   Watchlist management (Save for Later / Mark as Watched).
+*   **Robust Media Integration**:
+    *   Seeded with 47 popular movies and TV series (including *Breaking Bad*, *You*, *Inception*, etc.).
+    *   Real, high-resolution poster and backdrop assets sourced via TMDB (The Movie Database) CDN.
+    *   Official IMDb ratings displayed alongside local community scores.
+*   **H2 Database Cache**:
+    *   File-based local persistent caching to guarantee user session, watchlist, review, and rating persistence across restarts.
+
+---
 
 ## 🛠️ Tech Stack
 
-* **Language:** Java 26 (OpenJDK)
-* **IDE:** IntelliJ IDEA
-* **Build Tool:** Maven (optional)
+*   **Backend**: Spring Boot 3.x, Spring Data JPA, Hibernate, Maven
+*   **Database**: H2 Database (local file-based), Oracle Database (external via REST/ORDS)
+*   **Frontend**: HTML5, CSS3 (Custom Vanilla CSS with Glassmorphism variables), JavaScript (Vanilla ES6 SPA)
+*   **APIs**: TMDB Image CDN, Oracle APEX ORDS
 
-## 📊 How it Works
+---
 
-The engine uses the **Cosine Similarity** formula to find "neighbors" for a target user:
+## 📐 Architecture
 
-$$Similarity(A, B) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$
+```mermaid
+graph TD
+    UI[HTML5/CSS3/JS Web UI] <--> Controller[Spring Boot REST Controllers]
+    Controller <--> Service[Recommendation & Movie Services]
+    Service <--> H2[(Local H2 Database)]
+    Service <--> APEX[Oracle APEX ORDS REST API]
+    APEX <--> Oracle[(Oracle Database)]
+```
 
-1. **Similarity Calculation:** The system compares the rating history of the target user against all other users in the database.
-2. **Weighting:** It calculates a weighted average of ratings from similar users for movies the target user hasn't watched.
-3. **Ranking:** The top $N$ movies with the highest predicted scores are returned as suggestions.
+---
 
 ## 📂 Project Structure
 
 ```text
-src/main/java/com/recommendation
-├── model
-│   ├── Movie.java            # Movie entity (ID, Title)
-│   └── User.java             # User entity (ID, Rating Map)
-│   └── RecommendationService.java # The core similarity & recommendation logic
-└── Main.java                 # Entry point with sample dataset
-
+src/
+├── main/
+│   ├── java/com/recommend/movie/
+│   │   ├── config/             # Database Seeding & Security Configs
+│   │   ├── controller/         # REST API Endpoints
+│   │   ├── dto/                # Data Transfer Objects
+│   │   ├── model/              # JPA Database Entities (Movie, User, Rating, etc.)
+│   │   ├── repository/         # Spring Data JPA Repositories
+│   │   ├── service/            # Hybrid Recommendation & Business Logic
+│   │   └── MovieApplication.java
+│   └── resources/
+│       ├── static/             # Frontend Client Web Assets
+│       │   ├── css/style.css   # Custom Glassmorphism styles
+│       │   ├── js/app.js       # SPA Frontend Application Logic
+│       │   └── index.html      # Single Page Application entry point
+│       └── application.properties # Server, H2 DB, & Oracle APEX configs
+└── pom.xml                     # Maven Dependencies
 ```
 
-## ⚙️ Setup and Execution
+---
 
-1. **Clone the Repository:**
+## ⚙️ Setup and Installation
+
+### Prerequisites
+*   **Java**: JDK 17 or higher (Java 25+ fully supported)
+*   **Maven**: 3.8+ (wrapper/local installation)
+
+### 1. Run the Spring Boot App
+Clone the repository, open a terminal in the root directory, and compile and execute the application:
+
 ```bash
-git clone https://github.com/your-username/movie-recommendation-java.git
-
+mvn spring-boot:run
 ```
 
+### 2. Access the Application
+*   **Web Dashboard**: [http://localhost:8080](http://localhost:8080)
+*   **H2 Web Console**: [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
+    *   **JDBC URL**: `jdbc:h2:file:./data/moviedb`
+    *   **Username**: `sa`
+    *   **Password**: *(leave empty)*
 
-2. **Open in IntelliJ IDEA:**
-* Go to `File > Open` and select the project folder.
-* Ensure your **Project SDK** is set to Java 21 or higher (OpenJDK 26 supported).
+---
 
+## 🔌 Configuration
 
-3. **Mark Source Folder:**
-* Right-click the `src` folder -> `Mark Directory as` -> `Sources Root`.
+You can configure the database path and target Oracle APEX recommendation endpoint inside `src/main/resources/application.properties`:
 
+```properties
+# Server Port
+server.port=8080
 
-4. **Run the Application:**
-* Open `Main.java`.
-* Click the green **Run** icon next to the `main` method.
+# H2 Database configuration
+spring.datasource.url=jdbc:h2:file:./data/moviedb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+spring.datasource.username=sa
+spring.datasource.password=
 
-
-
-## 📝 Example Output
-
-```text
---- Movie Recommendations for User 4 ---
-1. Interstellar (ID: 3)
-2. Toy Story (ID: 4)
-
+# Oracle APEX ORDS API Integration
+oracle.apex.api.url=https://apex.oracle.com/ords/tr_a855_sql_s40/api
 ```
+
+---
+
+## 📡 API Endpoints
+
+### Movies
+*   `GET /api/movies` - Retrieve all movies in the system.
+*   `POST /api/movies/{id}/rate?userId={u}&score={s}` - Add or update a movie rating.
+*   `POST /api/movies/{id}/review?userId={u}` - Leave a text review for a movie.
+
+### Recommendations
+*   `GET /api/recommendations?userId={id}` - Fetch custom hybrid recommendations for a user.
+
+### Users
+*   `GET /api/users/profile?userId={id}` - Fetch user details, ratings, watchlist, and preferred genres.
+*   `POST /api/users/register` - Register a new user profile.
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you'd like to implement **Item-Based Filtering** or integrate a real dataset (like MovieLens), feel free to fork the repo and submit a pull request.
+Contributions are welcome! If you'd like to implement new filtering metrics (e.g., Pearson Correlation) or build more advanced dashboards, please fork the repository and submit a pull request.
