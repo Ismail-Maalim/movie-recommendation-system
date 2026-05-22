@@ -1,6 +1,7 @@
 package com.recommend.movie.controller;
 
 import com.recommend.movie.model.Movie;
+import com.recommend.movie.model.Episode;
 import com.recommend.movie.model.Rating;
 import com.recommend.movie.model.Review;
 import com.recommend.movie.model.WatchlistItem;
@@ -43,6 +44,11 @@ public class MovieController {
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("message", "Movie not found")));
+    }
+
+    @GetMapping("/{id}/episodes")
+    public ResponseEntity<?> getMovieEpisodes(@PathVariable Long id) {
+        return ResponseEntity.ok(movieService.getEpisodesByMovieId(id));
     }
 
     // Ratings

@@ -1,17 +1,22 @@
 package com.recommend.movie.config;
 
 import com.recommend.movie.model.Movie;
+import com.recommend.movie.model.Episode;
 import com.recommend.movie.model.Review;
 import com.recommend.movie.model.User;
 import com.recommend.movie.repository.MovieRepository;
+import com.recommend.movie.repository.EpisodeRepository;
 import com.recommend.movie.repository.ReviewRepository;
 import com.recommend.movie.repository.UserRepository;
 import com.recommend.movie.service.MovieService;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 @Component
 @SuppressWarnings("null")
@@ -20,24 +25,41 @@ public class DataLoader implements CommandLineRunner {
     private final MovieRepository movieRepository;
     private final UserRepository userRepository;
     private final ReviewRepository reviewRepository;
+    private final EpisodeRepository episodeRepository;
     private final MovieService movieService;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public DataLoader(MovieRepository movieRepository, UserRepository userRepository,
-                      ReviewRepository reviewRepository,
+                      ReviewRepository reviewRepository, EpisodeRepository episodeRepository,
                       MovieService movieService) {
         this.movieRepository = movieRepository;
         this.userRepository = userRepository;
         this.reviewRepository = reviewRepository;
+        this.episodeRepository = episodeRepository;
         this.movieService = movieService;
     }
 
     @Override
     public void run(String... args) throws Exception {
+        System.out.println("Initiating movies catalog synchronization from Oracle APEX...");
+        movieService.syncMoviesFromOracle();
+
         if (movieRepository.count() > 0) {
-            return; // Already seeded
+            System.out.println("Movies are present in local repository (either synced from Oracle or already seeded).");
+            if (userRepository.count() == 0) {
+                System.out.println("Seeding users...");
+                User alice = new User("alice", "alice@example.com", passwordEncoder.encode("password"), Arrays.asList("Sci-Fi", "Action"));
+                User bob = new User("bob", "bob@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Romance"));
+                User charlie = new User("charlie", "charlie@example.com", passwordEncoder.encode("password"), Arrays.asList("Crime", "Action"));
+                User diana = new User("diana", "diana@example.com", passwordEncoder.encode("password"), Arrays.asList("Animation", "Fantasy"));
+                User ethan = new User("ethan", "ethan@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Thriller"));
+                userRepository.saveAll(Arrays.asList(alice, bob, charlie, diana, ethan));
+            }
+            seedEpisodes();
+            return;
         }
 
-        System.out.println("Seeding database with movies, users, and ratings...");
+        System.out.println("Seeding database with default movies, users, and ratings (Oracle Sync Fallback)...");
 
         // 1. Seed Movies
         // Using high-quality curated Unsplash images for posters/backdrops that evoke the theme
@@ -573,11 +595,11 @@ public class DataLoader implements CommandLineRunner {
 
 
         // 2. Seed Users
-        User alice = new User("alice", "alice@example.com", "password", Arrays.asList("Sci-Fi", "Action"));
-        User bob = new User("bob", "bob@example.com", "password", Arrays.asList("Drama", "Romance"));
-        User charlie = new User("charlie", "charlie@example.com", "password", Arrays.asList("Crime", "Action"));
-        User diana = new User("diana", "diana@example.com", "password", Arrays.asList("Animation", "Fantasy"));
-        User ethan = new User("ethan", "ethan@example.com", "password", Arrays.asList("Drama", "Thriller"));
+        User alice = new User("alice", "alice@example.com", passwordEncoder.encode("password"), Arrays.asList("Sci-Fi", "Action"));
+        User bob = new User("bob", "bob@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Romance"));
+        User charlie = new User("charlie", "charlie@example.com", passwordEncoder.encode("password"), Arrays.asList("Crime", "Action"));
+        User diana = new User("diana", "diana@example.com", passwordEncoder.encode("password"), Arrays.asList("Animation", "Fantasy"));
+        User ethan = new User("ethan", "ethan@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Thriller"));
 
         userRepository.saveAll(Arrays.asList(alice, bob, charlie, diana, ethan));
 
@@ -651,6 +673,46 @@ public class DataLoader implements CommandLineRunner {
         reviewRepository.save(new Review(ethan.getId(), "ethan", dbGodfather.getId(), "The pinnacle of cinematic storytelling. Every shot, every line of dialogue is perfection. Marlon Brando's presence is legendary."));
         reviewRepository.save(new Review(diana.getId(), "diana", dbSpiritedAway.getId(), "Pure magic. The hand-drawn animation is gorgeous and the story is incredibly moving. Miyazaki is a genius."));
 
+        seedEpisodes();
         System.out.println("Seeding completed successfully.");
+    }
+
+    private void seedEpisodes() {
+        if (episodeRepository.count() > 0) {
+            return;
+        }
+        System.out.println("Seeding episodes for all movies...");
+        Set<String> tvShows = new HashSet<>(Arrays.asList(
+            "Stranger Things", "The Blacklist", "Person of Interest", "Money Heist",
+            "Breaking Bad", "You", "Orange Is the New Black", "From", "Supacell"
+        ));
+
+        List<Movie> allMovies = movieRepository.findAll();
+        for (Movie m : allMovies) {
+            if (tvShows.contains(m.getTitle())) {
+                // Seed 5 episodes for Season 1
+                episodeRepository.save(new Episode(m, 1, 1, "Chapter One: Start", "The beginning of the mystery unfolds.", "2016-07-15", 45));
+                episodeRepository.save(new Episode(m, 1, 2, "Chapter Two: The Discovery", "Secrets begin to leak as investigations heat up.", "2016-07-22", 48));
+                episodeRepository.save(new Episode(m, 1, 3, "Chapter Three: Escalation", "Tension reaches a boiling point between key characters.", "2016-07-29", 50));
+                episodeRepository.save(new Episode(m, 1, 4, "Chapter Four: Crossroads", "Hard decisions must be made to protect the group.", "2016-08-05", 52));
+                episodeRepository.save(new Episode(m, 1, 5, "Chapter Five: Climax", "The truth is revealed in a stunning season finale.", "2016-08-12", 55));
+            } else {
+                // Movie: Seed 1 feature-length episode
+                String title = "Main Feature";
+                String desc = m.getDescription();
+                Integer duration = 120; // default movie length
+                if (m.getTitle().contains("Dune")) {
+                    duration = 155;
+                } else if (m.getTitle().contains("Interstellar")) {
+                    duration = 169;
+                } else if (m.getTitle().contains("Inception")) {
+                    duration = 148;
+                } else if (m.getTitle().contains("The Dark Knight")) {
+                    duration = 152;
+                }
+                episodeRepository.save(new Episode(m, 1, 1, title, desc, String.valueOf(m.getReleaseYear()) + "-10-01", duration));
+            }
+        }
+        System.out.println("Episodes seeding complete.");
     }
 }

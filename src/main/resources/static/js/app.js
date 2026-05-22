@@ -44,12 +44,33 @@ const elements = {
     heroDetailsBtn: document.getElementById('hero-details-btn'),
     heroWatchlistBtn: document.getElementById('hero-watchlist-btn'),
     heroWatchlistIcon: document.getElementById('hero-watchlist-icon'),
-    trendingGrid: document.getElementById('trending-grid'),
+    trendingRow: document.getElementById('trending-row'),
+    recommendedRow: document.getElementById('recommended-row'),
+    recommendedRowContainer: document.getElementById('recommended-row-container'),
+    becauseLikedRow: document.getElementById('because-liked-row'),
+    becauseLikedRowContainer: document.getElementById('because-liked-row-container'),
+    becauseLikedTitle: document.getElementById('because-liked-title'),
+    scifiActionRow: document.getElementById('scifi-action-row'),
+    dramaClassicsRow: document.getElementById('drama-classics-row'),
     discoverGrid: document.getElementById('discover-grid'),
     recommendationsGrid: document.getElementById('recommendations-grid'),
     watchlistGrid: document.getElementById('watchlist-grid'),
     genrePills: document.getElementById('genre-pills'),
     recsExplainerDesc: document.getElementById('recs-explainer-desc'),
+    
+    // Onboarding Wizard
+    onboardingWizardModal: document.getElementById('onboarding-wizard-modal'),
+    onboardingGenresGrid: document.getElementById('onboarding-genres-grid'),
+    btnOnboardingNext1: document.getElementById('btn-onboarding-next-1'),
+    onboardingRateSubtitle: document.getElementById('onboarding-rate-subtitle'),
+    onboardingMoviesGrid: document.getElementById('onboarding-movies-grid'),
+    btnOnboardingPrev2: document.getElementById('btn-onboarding-prev-2'),
+    btnOnboardingNext2: document.getElementById('btn-onboarding-next-2'),
+    onboardingLoaderStatus: document.getElementById('onboarding-loader-status'),
+    onboardingProgressFill: document.getElementById('onboarding-progress-fill'),
+    onboardingStepPanel1: document.getElementById('onboarding-step-panel-1'),
+    onboardingStepPanel2: document.getElementById('onboarding-step-panel-2'),
+    onboardingStepPanel3: document.getElementById('onboarding-step-panel-3'),
     
     // Movie Details Modal
     movieDetailsModal: document.getElementById('movie-details-modal'),
@@ -70,6 +91,10 @@ const elements = {
     ratingStatusText: document.getElementById('rating-status-text'),
     reviewTextarea: document.getElementById('review-textarea'),
     btnSubmitReview: document.getElementById('btn-submit-review'),
+    modalEpisodesSection: document.getElementById('modal-episodes-section'),
+    episodesSeasonSelect: document.getElementById('episodes-season-select'),
+    modalEpisodesContainer: document.getElementById('modal-episodes-container'),
+    episodesTitleLabel: document.getElementById('episodes-title-label'),
     
     // Auth Modal
     authModal: document.getElementById('auth-modal'),
@@ -175,6 +200,25 @@ function setupEventListeners() {
             closeModal(e.target);
         }
     });
+
+    // Row navigation scroll button click event
+    document.querySelectorAll('.row-nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetId = btn.getAttribute('data-target');
+            const targetRow = document.getElementById(targetId);
+            if (targetRow) {
+                const scrollAmount = 600;
+                if (btn.classList.contains('prev')) {
+                    targetRow.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                } else {
+                    targetRow.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                }
+            }
+        });
+    });
+
+    // Initialize onboarding event listeners
+    setupOnboardingEventListeners();
 }
 
 // Switch Views
@@ -269,7 +313,7 @@ async function fetchRecommendations() {
     }
 }
 
-// Render Dashboard (Spotlight & Grid)
+// Render Dashboard (Spotlight & Scrolling Rows)
 function renderDashboard() {
     if (state.moviesList.length === 0) return;
 
@@ -307,9 +351,124 @@ function renderDashboard() {
         toggleWatchlist(spotlight, elements.heroWatchlistBtn, elements.heroWatchlistIcon);
     };
 
-    // Render Trending grid (exclude spotlight, show next 6 highest rated)
-    const trending = sorted.slice(1, 9);
-    renderMoviesGrid(elements.trendingGrid, trending);
+    // Render Scrolling Rows
+    // 1. Trending Now
+    renderMoviesRow(elements.trendingRow, sorted);
+
+    // 2. Sci-Fi & Action Hits
+    const scifiAction = state.moviesList.filter(m => 
+        m.genres.some(g => g === 'Sci-Fi' || g === 'Action')
+    ).sort((a, b) => b.averageRating - a.averageRating);
+    renderMoviesRow(elements.scifiActionRow, scifiAction);
+
+    // 3. Dramas & Classics
+    const dramaClassics = state.moviesList.filter(m => 
+        m.genres.some(g => g === 'Drama' || g === 'Classics' || g === 'Mystery')
+    ).sort((a, b) => b.averageRating - a.averageRating);
+    renderMoviesRow(elements.dramaClassicsRow, dramaClassics);
+
+    // 4. Personalized rows (only shown if logged in)
+    if (state.currentUser) {
+        if (elements.recommendedRowContainer) {
+            elements.recommendedRowContainer.style.display = 'block';
+            fetchRowRecommendations();
+        }
+        renderBecauseLikedRow();
+    } else {
+        if (elements.recommendedRowContainer) {
+            elements.recommendedRowContainer.style.display = 'none';
+        }
+        if (elements.becauseLikedRowContainer) {
+            elements.becauseLikedRowContainer.style.display = 'none';
+        }
+    }
+}
+
+// Helper to render movies to a horizontal scrolling row
+function renderMoviesRow(container, movies) {
+    if (!container) return;
+    container.innerHTML = '';
+    if (movies.length === 0) {
+        container.innerHTML = '<div class="no-reviews"><p>No movies available in this category.</p></div>';
+        return;
+    }
+    movies.forEach(movie => {
+        const card = createMovieCard(movie);
+        container.appendChild(card);
+    });
+}
+
+// Helper to fetch recommendations for dashboard row
+async function fetchRowRecommendations() {
+    if (!state.currentUser || !elements.recommendedRow) return;
+    
+    elements.recommendedRow.innerHTML = '<div style="padding: 20px; display: flex; align-items: center; justify-content: center; width: 100%;"><i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: var(--primary);"></i></div>';
+    
+    try {
+        const response = await fetch(`${API_BASE}/recommendations?userId=${state.currentUser.id}`);
+        if (response.ok) {
+            const recs = await response.json();
+            elements.recommendedRow.innerHTML = '';
+            if (recs.length === 0) {
+                elements.recommendedRow.innerHTML = '<div style="padding: 20px; color: var(--text-dimmed); text-align: center; width: 100%;">Rate some movies to get personalized recommendations!</div>';
+            } else {
+                recs.forEach(rec => {
+                    const movieCard = createMovieCard(rec.movie, rec);
+                    elements.recommendedRow.appendChild(movieCard);
+                });
+            }
+        } else {
+            elements.recommendedRow.innerHTML = '<div style="padding: 20px; color: var(--text-dimmed); text-align: center; width: 100%;">Failed to load recommendations.</div>';
+        }
+    } catch (e) {
+        console.error(e);
+        elements.recommendedRow.innerHTML = '<div style="padding: 20px; color: var(--text-dimmed); text-align: center; width: 100%;">Connection error.</div>';
+    }
+}
+
+// Helper to calculate "Because You Liked [Movie]" row
+function renderBecauseLikedRow() {
+    if (!state.currentUser || !elements.becauseLikedRowContainer || !elements.becauseLikedRow) return;
+
+    const ratingKey = `cinematch_ratings_${state.currentUser.id}`;
+    const userRatings = JSON.parse(localStorage.getItem(ratingKey) || '{}');
+
+    // Find user's highest rated movie ID
+    let highestMovieId = null;
+    let highestScore = 0;
+
+    for (const [movieId, score] of Object.entries(userRatings)) {
+        if (score > highestScore) {
+            highestScore = score;
+            highestMovieId = parseInt(movieId);
+        }
+    }
+
+    if (!highestMovieId) {
+        elements.becauseLikedRowContainer.style.display = 'none';
+        return;
+    }
+
+    const highestMovie = state.moviesList.find(m => m.id === highestMovieId);
+    if (!highestMovie) {
+        elements.becauseLikedRowContainer.style.display = 'none';
+        return;
+    }
+
+    // Set row title text dynamically
+    if (elements.becauseLikedTitle) {
+        elements.becauseLikedTitle.innerHTML = `<i class="fa-solid fa-heart" style="margin-right: 8px; color: #ef4444;"></i>Because You Liked <strong>${highestMovie.title}</strong>`;
+    }
+
+    // Find movies sharing genres with the favorite movie (excluding itself)
+    const targetGenres = highestMovie.genres;
+    const recommendedMovies = state.moviesList.filter(m => 
+        m.id !== highestMovie.id && 
+        m.genres.some(g => targetGenres.includes(g))
+    ).sort((a, b) => b.averageRating - a.averageRating);
+
+    elements.becauseLikedRowContainer.style.display = 'block';
+    renderMoviesRow(elements.becauseLikedRow, recommendedMovies);
 }
 
 // Render Discover Grid
@@ -604,6 +763,16 @@ async function openMovieDetails(movie) {
     // Reviews List
     await fetchReviews(movie.id);
 
+    // Episodes List
+    elements.modalEpisodesSection.style.display = 'block';
+    elements.episodesSeasonSelect.style.display = 'none';
+    elements.modalEpisodesContainer.innerHTML = `
+        <div class="episode-skeleton"></div>
+        <div class="episode-skeleton"></div>
+        <div class="episode-skeleton"></div>
+    `;
+    fetchEpisodes(movie.id);
+
     openModal(elements.movieDetailsModal);
 }
 
@@ -659,6 +828,111 @@ async function fetchReviews(movieId) {
     } catch (e) {
         console.error(e);
         elements.modalReviewsList.innerHTML = '<div class="no-reviews">Failed to load reviews.</div>';
+    }
+}
+
+// Fetch and Render Episodes
+async function fetchEpisodes(movieId) {
+    try {
+        const response = await fetch(`${API_BASE}/movies/${movieId}/episodes`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch episodes');
+        }
+        const episodes = await response.json();
+        
+        if (!episodes || episodes.length === 0) {
+            elements.modalEpisodesSection.style.display = 'none';
+            return;
+        }
+
+        // TV show vs. standard Movie detection
+        const isSeries = episodes.length > 1;
+
+        if (isSeries) {
+            // Group episodes by season
+            const seasonsMap = {};
+            episodes.forEach(ep => {
+                const s = ep.seasonNumber || 1;
+                if (!seasonsMap[s]) {
+                    seasonsMap[s] = [];
+                }
+                seasonsMap[s].push(ep);
+            });
+
+            // Sort episodes inside seasons
+            Object.keys(seasonsMap).forEach(s => {
+                seasonsMap[s].sort((a, b) => a.episodeNumber - b.episodeNumber);
+            });
+
+            const seasons = Object.keys(seasonsMap).sort((a, b) => a - b);
+            
+            // Populate season dropdown
+            elements.episodesSeasonSelect.innerHTML = '';
+            seasons.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = `Season ${s}`;
+                elements.episodesSeasonSelect.appendChild(opt);
+            });
+
+            elements.episodesSeasonSelect.style.display = 'block';
+            elements.episodesTitleLabel.textContent = 'Episodes';
+
+            // Show episodes of the first season by default
+            const renderSeasonEpisodes = (seasonNum) => {
+                elements.modalEpisodesContainer.innerHTML = '';
+                const seasonEps = seasonsMap[seasonNum] || [];
+                
+                seasonEps.forEach(ep => {
+                    const card = document.createElement('div');
+                    card.className = 'episode-card';
+                    card.innerHTML = `
+                        <div class="episode-number-badge">${ep.episodeNumber}</div>
+                        <div class="episode-details-info">
+                            <div class="episode-title-row">
+                                <div class="episode-title">${ep.title || `Episode ${ep.episodeNumber}`}</div>
+                                <div class="episode-duration">${ep.durationMinutes ? ep.durationMinutes + 'm' : ''}</div>
+                            </div>
+                            <div class="episode-desc">${ep.description || 'No description available.'}</div>
+                        </div>
+                        <div class="episode-play-icon">
+                            <i class="fa-solid fa-play"></i>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => {
+                        showToast(`Playing Season ${seasonNum} Episode ${ep.episodeNumber}: "${ep.title}"...`, 'success');
+                    });
+                    elements.modalEpisodesContainer.appendChild(card);
+                });
+            };
+
+            renderSeasonEpisodes(seasons[0]);
+
+            // Handle season change select trigger
+            elements.episodesSeasonSelect.onchange = (e) => {
+                renderSeasonEpisodes(e.target.value);
+            };
+        } else {
+            // Standard movie mode: show a single play feature card
+            elements.episodesSeasonSelect.style.display = 'none';
+            elements.episodesTitleLabel.textContent = 'Playback';
+            elements.modalEpisodesContainer.innerHTML = `
+                <div class="movie-play-card" id="btn-play-movie-feature">
+                    <div class="movie-play-btn-circle">
+                        <i class="fa-solid fa-play"></i>
+                    </div>
+                    <span style="font-weight: 600; font-size: 15px; color: var(--text-main);">Watch Feature Film</span>
+                    <span style="font-size: 13px; color: var(--text-muted);">Stream this title now in Ultra HD 4K</span>
+                </div>
+            `;
+            
+            document.getElementById('btn-play-movie-feature').addEventListener('click', () => {
+                showToast(`Starting stream: "${state.currentMovie.title}"...`, 'success');
+            });
+        }
+    } catch (e) {
+        console.error('Error fetching episodes:', e);
+        elements.modalEpisodesSection.style.display = 'none';
     }
 }
 
@@ -746,6 +1020,12 @@ async function submitRating(score) {
             showToast(`Rated ${state.currentMovie.title} - ${score} Stars`, 'success');
             highlightStars(score);
             elements.ratingStatusText.textContent = `You rated this movie ${score} stars`;
+            
+            // Save to local storage ratings log
+            const ratingKey = `cinematch_ratings_${state.currentUser.id}`;
+            let userRatings = JSON.parse(localStorage.getItem(ratingKey) || '{}');
+            userRatings[state.currentMovie.id] = score;
+            localStorage.setItem(ratingKey, JSON.stringify(userRatings));
             
             // Recalculate movie local average rating and sync app catalogs
             await fetchMovies();
@@ -880,8 +1160,8 @@ async function handleRegister(e) {
             
             updateUserUI();
             
-            // Redirect to Preferences Selection to onboard user
-            openPreferencesModal();
+            // Trigger interactive multi-step onboarding wizard
+            startOnboardingWizard();
         } else {
             const err = await response.json();
             showToast(err.message || 'Registration failed', 'error');
@@ -1060,4 +1340,291 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// ==========================================
+// Onboarding Wizard Implementation
+// ==========================================
+
+function startOnboardingWizard() {
+    state.onboardingSelectedGenres = new Set();
+    state.onboardingRatings = {};
+    
+    // Reset selected states on step 1 genres
+    if (elements.onboardingGenresGrid) {
+        elements.onboardingGenresGrid.querySelectorAll('.pref-checkbox-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+    }
+    
+    if (elements.btnOnboardingNext1) elements.btnOnboardingNext1.disabled = true;
+    if (elements.btnOnboardingNext2) elements.btnOnboardingNext2.disabled = true;
+    
+    // Display the first step panel
+    showOnboardingStep(1);
+    
+    openModal(elements.onboardingWizardModal);
+}
+
+function showOnboardingStep(stepNum) {
+    if (!elements.onboardingStepPanel1 || !elements.onboardingStepPanel2 || !elements.onboardingStepPanel3) return;
+    
+    // Toggle active panel classes
+    elements.onboardingStepPanel1.classList.remove('active');
+    elements.onboardingStepPanel2.classList.remove('active');
+    elements.onboardingStepPanel3.classList.remove('active');
+    
+    const targetPanel = document.getElementById(`onboarding-step-panel-${stepNum}`);
+    if (targetPanel) {
+        targetPanel.classList.add('active');
+    }
+    
+    // Update visual progress headers
+    for (let i = 1; i <= 3; i++) {
+        const ind = document.getElementById(`onboarding-step-ind-${i}`);
+        const line = document.getElementById(`onboarding-step-line-${i}`);
+        
+        if (ind) {
+            if (i < stepNum) {
+                ind.className = 'onboarding-step-indicator completed';
+            } else if (i === stepNum) {
+                ind.className = 'onboarding-step-indicator active';
+            } else {
+                ind.className = 'onboarding-step-indicator';
+            }
+        }
+        
+        if (line) {
+            if (i < stepNum) {
+                line.className = 'onboarding-step-line completed';
+            } else {
+                line.className = 'onboarding-step-line';
+            }
+        }
+    }
+}
+
+function setupOnboardingEventListeners() {
+    if (!elements.onboardingGenresGrid) return;
+    
+    // Genres click handler
+    const genreBtns = elements.onboardingGenresGrid.querySelectorAll('.pref-checkbox-btn');
+    genreBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const genre = btn.getAttribute('data-genre');
+            if (state.onboardingSelectedGenres.has(genre)) {
+                state.onboardingSelectedGenres.delete(genre);
+                btn.classList.remove('selected');
+            } else {
+                state.onboardingSelectedGenres.add(genre);
+                btn.classList.add('selected');
+            }
+            
+            // Enable next button if at least 3 genres are selected
+            if (elements.btnOnboardingNext1) {
+                elements.btnOnboardingNext1.disabled = state.onboardingSelectedGenres.size < 3;
+            }
+        });
+    });
+
+    // Step 1 -> Step 2
+    if (elements.btnOnboardingNext1) {
+        elements.btnOnboardingNext1.addEventListener('click', () => {
+            renderOnboardingSeedingMovies();
+            showOnboardingStep(2);
+        });
+    }
+
+    // Step 2 Back -> Step 1
+    if (elements.btnOnboardingPrev2) {
+        elements.btnOnboardingPrev2.addEventListener('click', () => {
+            showOnboardingStep(1);
+        });
+    }
+
+    // Step 2 Complete -> Step 3
+    if (elements.btnOnboardingNext2) {
+        elements.btnOnboardingNext2.addEventListener('click', () => {
+            startTasteCalculationAnimation();
+        });
+    }
+}
+
+function renderOnboardingSeedingMovies() {
+    if (!elements.onboardingMoviesGrid || state.moviesList.length === 0) return;
+    
+    elements.onboardingMoviesGrid.innerHTML = '';
+    
+    // Sort movies by averageRating descending and select the top 12
+    const seedMovies = [...state.moviesList]
+        .sort((a, b) => b.averageRating - a.averageRating)
+        .slice(0, 12);
+        
+    seedMovies.forEach(movie => {
+        const card = document.createElement('div');
+        card.className = 'onboarding-movie-card';
+        card.setAttribute('data-id', movie.id);
+        
+        card.innerHTML = `
+            <div class="onboarding-movie-poster">
+                <img src="${movie.posterUrl}" alt="${movie.title}" onerror="this.src='https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=500&q=80'">
+            </div>
+            <div class="onboarding-movie-info">
+                <h4 class="onboarding-movie-title">${movie.title}</h4>
+                <div class="onboarding-movie-meta">${movie.releaseYear} • ${movie.genres.slice(0, 2).join(', ')}</div>
+                <div class="onboarding-stars" data-id="${movie.id}">
+                    <i class="fa-regular fa-star" data-score="1"></i>
+                    <i class="fa-regular fa-star" data-score="2"></i>
+                    <i class="fa-regular fa-star" data-score="3"></i>
+                    <i class="fa-regular fa-star" data-score="4"></i>
+                    <i class="fa-regular fa-star" data-score="5"></i>
+                </div>
+            </div>
+        `;
+        
+        // Star interactive events
+        const stars = card.querySelectorAll('.onboarding-stars i');
+        stars.forEach(star => {
+            star.addEventListener('mouseover', (e) => {
+                const score = parseInt(e.target.getAttribute('data-score'));
+                highlightOnboardingStars(card, score, 'hovered');
+            });
+            
+            star.addEventListener('mouseout', () => {
+                clearOnboardingHover(card);
+            });
+            
+            star.addEventListener('click', (e) => {
+                const score = parseInt(e.target.getAttribute('data-score'));
+                state.onboardingRatings[movie.id] = score;
+                card.classList.add('rated');
+                highlightOnboardingStars(card, score, 'selected');
+                
+                updateOnboardingProgressSubtitle();
+            });
+        });
+        
+        elements.onboardingMoviesGrid.appendChild(card);
+    });
+}
+
+function highlightOnboardingStars(card, score, className) {
+    const stars = card.querySelectorAll('.onboarding-stars i');
+    stars.forEach(star => {
+        const starScore = parseInt(star.getAttribute('data-score'));
+        if (starScore <= score) {
+            star.className = `fa-solid fa-star ${className}`;
+        } else {
+            star.className = 'fa-regular fa-star';
+        }
+    });
+}
+
+function clearOnboardingHover(card) {
+    const stars = card.querySelectorAll('.onboarding-stars i');
+    const movieId = card.getAttribute('data-id');
+    const savedScore = state.onboardingRatings[movieId] || 0;
+    
+    stars.forEach(star => {
+        const starScore = parseInt(star.getAttribute('data-score'));
+        if (starScore <= savedScore) {
+            star.className = 'fa-solid fa-star selected';
+        } else {
+            star.className = 'fa-regular fa-star';
+        }
+    });
+}
+
+function updateOnboardingProgressSubtitle() {
+    if (!elements.onboardingRateSubtitle || !elements.btnOnboardingNext2) return;
+    
+    const ratedCount = Object.keys(state.onboardingRatings).length;
+    elements.onboardingRateSubtitle.textContent = `Rate at least 5 movies/TV shows to initialize your AI recommendations: (${ratedCount}/5 rated)`;
+    
+    // Enable complete button if 5 or more rated
+    elements.btnOnboardingNext2.disabled = ratedCount < 5;
+}
+
+function startTasteCalculationAnimation() {
+    showOnboardingStep(3);
+    
+    if (!elements.onboardingProgressFill || !elements.onboardingLoaderStatus) return;
+    
+    let progress = 0;
+    elements.onboardingProgressFill.style.width = '0%';
+    
+    const interval = setInterval(async () => {
+        progress += 2;
+        if (progress > 100) progress = 100;
+        
+        elements.onboardingProgressFill.style.width = `${progress}%`;
+        
+        if (progress < 30) {
+            elements.onboardingLoaderStatus.textContent = "Analyzing genre overlaps and similarity scores...";
+        } else if (progress < 60) {
+            elements.onboardingLoaderStatus.textContent = "Mapping user taste coordinates to community vector spaces...";
+        } else if (progress < 90) {
+            elements.onboardingLoaderStatus.textContent = "Configuring recommendation queues...";
+        } else if (progress === 100) {
+            elements.onboardingLoaderStatus.textContent = "Done! Generating your personalized home feed.";
+            clearInterval(interval);
+            
+            await submitOnboardingData();
+        }
+    }, 60); // Roughly 3 seconds total animation
+}
+
+async function submitOnboardingData() {
+    if (!state.currentUser) return;
+    
+    const genresArray = Array.from(state.onboardingSelectedGenres);
+    
+    try {
+        // 1. Submit selected genres preferences
+        const prefResponse = await fetch(`${API_BASE}/users/${state.currentUser.id}/preferences`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(genresArray)
+        });
+        
+        if (prefResponse.ok) {
+            const updatedUser = await prefResponse.json();
+            state.currentUser = updatedUser;
+            localStorage.setItem('cinematch_user', JSON.stringify(updatedUser));
+        }
+        
+        // 2. Submit all seeding movie ratings
+        const ratingKey = `cinematch_ratings_${state.currentUser.id}`;
+        let localRatings = JSON.parse(localStorage.getItem(ratingKey) || '{}');
+        
+        for (const [movieId, score] of Object.entries(state.onboardingRatings)) {
+            await fetch(`${API_BASE}/movies/${movieId}/rate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: state.currentUser.id,
+                    score: score
+                })
+            });
+            localRatings[movieId] = score;
+        }
+        localStorage.setItem(ratingKey, JSON.stringify(localRatings));
+        
+        // 3. Reload movie catalogs to sync rating averages
+        await fetchMovies();
+        
+        // 4. Close wizard and refresh feed view
+        updateUserUI();
+        closeModal(elements.onboardingWizardModal);
+        
+        showToast('Onboarding completed! Welcome to CineMatch.', 'success');
+        
+        // Redirect to recommendations tab
+        switchView('recommendations');
+        
+    } catch (e) {
+        console.error(e);
+        showToast('Error finalizing onboarding profile', 'error');
+        closeModal(elements.onboardingWizardModal);
+    }
 }

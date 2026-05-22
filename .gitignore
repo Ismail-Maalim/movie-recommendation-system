@@ -7,3 +7,5 @@
 *.mv.db
 *.trace.db
 upload_project.ps1
+powershell.cmd
+scratch/

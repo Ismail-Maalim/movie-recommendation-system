@@ -7,6 +7,7 @@ import com.recommend.movie.model.User;
 import com.recommend.movie.repository.MovieRepository;
 import com.recommend.movie.repository.RatingRepository;
 import com.recommend.movie.repository.UserRepository;
+import com.recommend.movie.repository.WatchlistItemRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,9 @@ public class RecommendationServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private WatchlistItemRepository watchlistRepository;
+
     private RecommendationService recommendationService;
 
     private User targetUser;
@@ -40,7 +44,7 @@ public class RecommendationServiceTest {
 
     @BeforeEach
     public void setup() {
-        recommendationService = new RecommendationService(movieRepository, ratingRepository, userRepository);
+        recommendationService = new RecommendationService(movieRepository, ratingRepository, userRepository, watchlistRepository);
 
         // Define users
         targetUser = new User();
@@ -73,6 +77,7 @@ public class RecommendationServiceTest {
         targetUser.setPreferredGenres(Collections.emptyList());
         when(userRepository.findById(1L)).thenReturn(Optional.of(targetUser));
         when(ratingRepository.findByUserId(1L)).thenReturn(Collections.emptyList());
+        when(watchlistRepository.findByUserId(1L)).thenReturn(Collections.emptyList());
         
         // Mock database movies
         when(movieRepository.findAll()).thenReturn(Arrays.asList(movieSciFi, movieDrama, movieAction));
@@ -95,6 +100,8 @@ public class RecommendationServiceTest {
         Movie movieSciFi2 = new Movie("Interstellar", "Space exploration", 2014, Arrays.asList("Sci-Fi"), "", "", "", "");
         movieSciFi2.setId(104L);
         movieSciFi2.setAverageRating(4.7);
+
+        when(watchlistRepository.findByUserId(1L)).thenReturn(Collections.emptyList());
 
         // When requesting hybrid recommendations, it should rank Sci-Fi (Inception rated highly + pref)
         // since Sci-Fi is in Alice's preferences and she highly rated it

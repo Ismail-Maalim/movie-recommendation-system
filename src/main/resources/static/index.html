@@ -130,13 +130,81 @@
                     </div>
                 </div>
 
-                <!-- Trending/Popular Movies -->
-                <div class="section-header">
-                    <h3 class="section-title">Trending Now</h3>
+                <!-- Rows Container -->
+                <div class="dashboard-rows-container">
+                    
+                    <!-- Trending Now Row -->
+                    <div class="movie-row-container" id="trending-row-container">
+                        <div class="section-header">
+                            <h3 class="section-title"><i class="fa-solid fa-fire" style="margin-right: 8px; color: var(--primary);"></i>Trending Now</h3>
+                        </div>
+                        <div class="movie-row-wrapper">
+                            <button class="row-nav-btn prev" data-target="trending-row"><i class="fa-solid fa-chevron-left"></i></button>
+                            <div class="movie-row" id="trending-row">
+                                <!-- Dynamic -->
+                            </div>
+                            <button class="row-nav-btn next" data-target="trending-row"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Recommended For You Row (Only shown if logged in) -->
+                    <div class="movie-row-container" id="recommended-row-container" style="display: none;">
+                        <div class="section-header">
+                            <h3 class="section-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right: 8px; color: var(--secondary);"></i>Recommended For You</h3>
+                        </div>
+                        <div class="movie-row-wrapper">
+                            <button class="row-nav-btn prev" data-target="recommended-row"><i class="fa-solid fa-chevron-left"></i></button>
+                            <div class="movie-row" id="recommended-row">
+                                <!-- Dynamic -->
+                            </div>
+                            <button class="row-nav-btn next" data-target="recommended-row"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Because You Liked Row (Dynamic based on user highest rated movie) -->
+                    <div class="movie-row-container" id="because-liked-row-container" style="display: none;">
+                        <div class="section-header">
+                            <h3 class="section-title" id="because-liked-title"><i class="fa-solid fa-heart" style="margin-right: 8px; color: #ef4444;"></i>Because You Liked...</h3>
+                        </div>
+                        <div class="movie-row-wrapper">
+                            <button class="row-nav-btn prev" data-target="because-liked-row"><i class="fa-solid fa-chevron-left"></i></button>
+                            <div class="movie-row" id="because-liked-row">
+                                <!-- Dynamic -->
+                            </div>
+                            <button class="row-nav-btn next" data-target="because-liked-row"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Genre Spotlight: Sci-Fi & Action -->
+                    <div class="movie-row-container" id="scifi-action-row-container">
+                        <div class="section-header">
+                            <h3 class="section-title"><i class="fa-solid fa-rocket" style="margin-right: 8px; color: var(--accent);"></i>Sci-Fi & Action Hits</h3>
+                        </div>
+                        <div class="movie-row-wrapper">
+                            <button class="row-nav-btn prev" data-target="scifi-action-row"><i class="fa-solid fa-chevron-left"></i></button>
+                            <div class="movie-row" id="scifi-action-row">
+                                <!-- Dynamic -->
+                            </div>
+                            <button class="row-nav-btn next" data-target="scifi-action-row"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Genre Spotlight: Dramas & Classics -->
+                    <div class="movie-row-container" id="drama-classics-row-container">
+                        <div class="section-header">
+                            <h3 class="section-title"><i class="fa-solid fa-masks-theater" style="margin-right: 8px; color: #a855f7;"></i>Dramas & Classics</h3>
+                        </div>
+                        <div class="movie-row-wrapper">
+                            <button class="row-nav-btn prev" data-target="drama-classics-row"><i class="fa-solid fa-chevron-left"></i></button>
+                            <div class="movie-row" id="drama-classics-row">
+                                <!-- Dynamic -->
+                            </div>
+                            <button class="row-nav-btn next" data-target="drama-classics-row"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
                 </div>
-                <div class="movie-grid" id="trending-grid">
-                    <!-- Dynamic -->
-                </div>
+
             </section>
 
             <!-- 2. DISCOVER VIEW -->
@@ -251,6 +319,19 @@
                         <div class="movie-credits">
                             <div class="credits-item">
                                 <span>Cast:</span> <span id="modal-cast" style="font-weight: normal; color: var(--text-muted);">Leonardo DiCaprio, Joseph Gordon-Levitt</span>
+                            </div>
+                        </div>
+
+                        <!-- EPISODES SECTION -->
+                        <div id="modal-episodes-section" class="modal-episodes-section" style="display: none; margin-top: 24px; margin-bottom: 24px;">
+                            <div class="episodes-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                <h4 class="detail-section-title" id="episodes-title-label" style="margin-bottom: 0; border: none; padding: 0;">Episodes</h4>
+                                <select id="episodes-season-select" class="season-select-dropdown">
+                                    <!-- Dynamic options -->
+                                </select>
+                            </div>
+                            <div id="modal-episodes-container" class="episodes-grid-container">
+                                <!-- Dynamic episode cards -->
                             </div>
                         </div>
 
@@ -377,6 +458,89 @@
             <button class="btn-auth-submit" id="btn-save-preferences" style="margin-top: 30px; width: 100%;">
                 Save & Update Recommendations
             </button>
+        </div>
+    </div>
+
+    <!-- ONBOARDING WIZARD MODAL -->
+    <div class="modal-overlay" id="onboarding-wizard-modal">
+        <div class="modal-container onboarding-modal" style="max-width: 700px; padding: 40px; border-radius: var(--radius-lg);">
+            
+            <!-- Step Progress Header -->
+            <div class="onboarding-progress-header">
+                <div class="onboarding-step-indicator active" id="onboarding-step-ind-1">
+                    <span class="step-num">1</span>
+                    <span class="step-label">Genres</span>
+                </div>
+                <div class="onboarding-step-line" id="onboarding-step-line-1"></div>
+                <div class="onboarding-step-indicator" id="onboarding-step-ind-2">
+                    <span class="step-num">2</span>
+                    <span class="step-label">Ratings</span>
+                </div>
+                <div class="onboarding-step-line" id="onboarding-step-line-2"></div>
+                <div class="onboarding-step-indicator" id="onboarding-step-ind-3">
+                    <span class="step-num">3</span>
+                    <span class="step-label">Analyze</span>
+                </div>
+            </div>
+
+            <!-- STEP 1: SELECT GENRES -->
+            <div class="onboarding-step-panel active" id="onboarding-step-panel-1">
+                <h2 class="auth-title" style="text-align: center; font-size: 26px;">Welcome to CineMatch!</h2>
+                <p class="auth-subtitle" style="text-align: center; margin-bottom: 30px;">Let's customize your profile. Select at least 3 genres you enjoy:</p>
+                
+                <div class="pref-grid" id="onboarding-genres-grid" style="margin-bottom: 30px;">
+                    <div class="pref-checkbox-btn" data-genre="Sci-Fi"><i class="fa-solid fa-rocket"></i> Sci-Fi</div>
+                    <div class="pref-checkbox-btn" data-genre="Action"><i class="fa-solid fa-burst"></i> Action</div>
+                    <div class="pref-checkbox-btn" data-genre="Drama"><i class="fa-solid fa-masks-theater"></i> Drama</div>
+                    <div class="pref-checkbox-btn" data-genre="Adventure"><i class="fa-solid fa-compass"></i> Adventure</div>
+                    <div class="pref-checkbox-btn" data-genre="Thriller"><i class="fa-solid fa-skull"></i> Thriller</div>
+                    <div class="pref-checkbox-btn" data-genre="Crime"><i class="fa-solid fa-handcuffs"></i> Crime</div>
+                    <div class="pref-checkbox-btn" data-genre="Romance"><i class="fa-solid fa-heart"></i> Romance</div>
+                    <div class="pref-checkbox-btn" data-genre="Comedy"><i class="fa-solid fa-face-laugh-beam"></i> Comedy</div>
+                    <div class="pref-checkbox-btn" data-genre="Animation"><i class="fa-solid fa-palette"></i> Animation</div>
+                    <div class="pref-checkbox-btn" data-genre="Fantasy"><i class="fa-solid fa-wand-sparkles"></i> Fantasy</div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button class="btn-auth-submit" id="btn-onboarding-next-1" style="width: auto; padding: 12px 30px;" disabled>
+                        Next: Rate Movies <i class="fa-solid fa-arrow-right" style="margin-left: 8px;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: RATE STARTER MOVIES -->
+            <div class="onboarding-step-panel" id="onboarding-step-panel-2">
+                <h2 class="auth-title" style="text-align: center; font-size: 26px;">Rate Starter Titles</h2>
+                <p class="auth-subtitle" style="text-align: center; margin-bottom: 20px;" id="onboarding-rate-subtitle">Rate at least 5 movies/TV shows to initialize your AI recommendations: (0/5 rated)</p>
+                
+                <div class="onboarding-movies-grid" id="onboarding-movies-grid">
+                    <!-- Dynamic Grid of 12 seeding movies -->
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px;">
+                    <button class="btn-secondary" id="btn-onboarding-prev-2" style="padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-main); border-radius: var(--radius-sm); cursor: pointer;">
+                        <i class="fa-solid fa-arrow-left" style="margin-right: 8px;"></i> Back
+                    </button>
+                    <button class="btn-auth-submit" id="btn-onboarding-next-2" style="width: auto; padding: 12px 30px;" disabled>
+                        Complete Onboarding <i class="fa-solid fa-check" style="margin-left: 8px;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: COMPUTING ENGINE -->
+            <div class="onboarding-step-panel" id="onboarding-step-panel-3" style="text-align: center; padding: 40px 0;">
+                <div class="loader-circle-container">
+                    <div class="loader-glow-ring"></div>
+                    <i class="fa-solid fa-brain loader-brain-icon"></i>
+                </div>
+                <h2 class="auth-title" style="margin-top: 30px; font-size: 24px;">Configuring Your Feed...</h2>
+                <p class="auth-subtitle" id="onboarding-loader-status" style="margin-top: 10px; max-width: 400px; margin-left: auto; margin-right: auto;">Analyzing genre overlaps and similarity scores...</p>
+                
+                <div class="onboarding-progress-bar-wrapper">
+                    <div class="onboarding-progress-bar-fill" id="onboarding-progress-fill"></div>
+                </div>
+            </div>
+
         </div>
     </div>
 

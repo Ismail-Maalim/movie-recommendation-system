@@ -7,6 +7,7 @@ import com.recommend.movie.model.User;
 import com.recommend.movie.repository.MovieRepository;
 import com.recommend.movie.repository.RatingRepository;
 import com.recommend.movie.repository.UserRepository;
+import com.recommend.movie.repository.WatchlistItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
@@ -22,16 +23,19 @@ public class RecommendationService {
     private final MovieRepository movieRepository;
     private final RatingRepository ratingRepository;
     private final UserRepository userRepository;
+    private final WatchlistItemRepository watchlistRepository;
 
     @Value("${oracle.apex.api.url}")
     private String apexApiUrl;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public RecommendationService(MovieRepository movieRepository, RatingRepository ratingRepository, UserRepository userRepository) {
+    public RecommendationService(MovieRepository movieRepository, RatingRepository ratingRepository, 
+                                 UserRepository userRepository, WatchlistItemRepository watchlistRepository) {
         this.movieRepository = movieRepository;
         this.ratingRepository = ratingRepository;
         this.userRepository = userRepository;
+        this.watchlistRepository = watchlistRepository;
     }
 
     /**
@@ -83,19 +87,27 @@ public class RecommendationService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         List<Rating> userRatings = ratingRepository.findByUserId(userId);
+        List<com.recommend.movie.model.WatchlistItem> watchlistItems = watchlistRepository.findByUserId(userId);
         List<Movie> allMovies = movieRepository.findAll();
+        
         Set<Long> ratedMovieIds = userRatings.stream()
                 .map(Rating::getMovieId)
                 .collect(Collectors.toSet());
+        Set<Long> watchlistMovieIds = watchlistItems.stream()
+                .map(com.recommend.movie.model.WatchlistItem::getMovieId)
+                .collect(Collectors.toSet());
 
-        // 1. If user has no ratings and no preferences, recommend popular movies
-        if (userRatings.isEmpty() && (user.getPreferredGenres() == null || user.getPreferredGenres().isEmpty())) {
-            return getPopularRecommendations(allMovies, ratedMovieIds, limit);
+        Set<Long> excludedMovieIds = new HashSet<>(ratedMovieIds);
+        excludedMovieIds.addAll(watchlistMovieIds);
+
+        // 1. If user has no ratings, no watchlist items, and no preferences, recommend popular movies
+        if (userRatings.isEmpty() && watchlistItems.isEmpty() && (user.getPreferredGenres() == null || user.getPreferredGenres().isEmpty())) {
+            return getPopularRecommendations(allMovies, excludedMovieIds, limit);
         }
 
         // 2. Fetch Collaborative Filtering (CF) and Content-Based Filtering (CB) candidates
-        List<MovieRecommendation> cfRecs = getCollaborativeRecommendations(userId, userRatings, allMovies, ratedMovieIds);
-        List<MovieRecommendation> cbRecs = getContentRecommendations(user, userRatings, allMovies, ratedMovieIds);
+        List<MovieRecommendation> cfRecs = getCollaborativeRecommendations(userId, userRatings, allMovies, excludedMovieIds);
+        List<MovieRecommendation> cbRecs = getContentRecommendations(user, userRatings, allMovies, excludedMovieIds);
 
         // 3. Merge them into a Hybrid recommendation list
         Map<Long, MovieRecommendation> hybridMap = new HashMap<>();
@@ -110,8 +122,8 @@ public class RecommendationService {
             Long movieId = cf.getMovie().getId();
             if (hybridMap.containsKey(movieId)) {
                 MovieRecommendation cb = hybridMap.get(movieId);
-                // Combine scores: 60% Collaborative, 40% Content-Based
-                double combinedScore = 0.6 * cf.getScore() + 0.4 * cb.getScore();
+                // Combine scores: 50% Collaborative, 50% Content-Based
+                double combinedScore = 0.5 * cf.getScore() + 0.5 * cb.getScore();
                 int combinedMatch = (int) Math.min(99, Math.round(combinedScore * 100));
                 
                 cb.setRecommendationType("HYBRID");
@@ -124,6 +136,16 @@ public class RecommendationService {
             }
         }
 
+        // Apply popularity/freshness decay based on release year
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        for (MovieRecommendation rec : hybridMap.values()) {
+            Movie movie = rec.getMovie();
+            double ageDecay = Math.pow(0.98, Math.max(0, currentYear - movie.getReleaseYear()));
+            double updatedScore = rec.getScore() * ageDecay;
+            rec.setScore(updatedScore);
+            rec.setMatchPercentage((int) Math.min(99, Math.round(updatedScore * 100)));
+        }
+
         // Sort by score descending
         List<MovieRecommendation> sortedRecs = new ArrayList<>(hybridMap.values());
         sortedRecs.sort(Comparator.comparingDouble(MovieRecommendation::getScore).reversed());
@@ -131,10 +153,10 @@ public class RecommendationService {
         // If list is still too short, pad with popular movies
         if (sortedRecs.size() < limit) {
             Set<Long> recommendedIds = sortedRecs.stream().map(r -> r.getMovie().getId()).collect(Collectors.toSet());
-            Set<Long> excludedIds = new HashSet<>(ratedMovieIds);
-            excludedIds.addAll(recommendedIds);
+            Set<Long> newExcludedIds = new HashSet<>(excludedMovieIds);
+            newExcludedIds.addAll(recommendedIds);
             
-            List<MovieRecommendation> populars = getPopularRecommendations(allMovies, excludedIds, limit - sortedRecs.size());
+            List<MovieRecommendation> populars = getPopularRecommendations(allMovies, newExcludedIds, limit - sortedRecs.size());
             sortedRecs.addAll(populars);
         }
 
@@ -269,6 +291,21 @@ public class RecommendationService {
         if (user.getPreferredGenres() != null) {
             for (String prefGenre : user.getPreferredGenres()) {
                 genreWeights.put(prefGenre.toLowerCase(), genreWeights.getOrDefault(prefGenre.toLowerCase(), 0.0) + 1.5);
+            }
+        }
+
+        // Add watchlist genres to profile
+        List<com.recommend.movie.model.WatchlistItem> watchlistItems = watchlistRepository.findByUserId(user.getId());
+        if (watchlistItems != null && !watchlistItems.isEmpty()) {
+            Map<Long, Movie> movieMap = allMovies.stream().collect(Collectors.toMap(Movie::getId, m -> m));
+            for (com.recommend.movie.model.WatchlistItem item : watchlistItems) {
+                Movie movie = movieMap.get(item.getMovieId());
+                if (movie != null) {
+                    double weight = 1.2; // Watchlist items indicate high interest
+                    for (String genre : movie.getGenres()) {
+                        genreWeights.put(genre.toLowerCase(), genreWeights.getOrDefault(genre.toLowerCase(), 0.0) + weight);
+                    }
+                }
             }
         }
 
