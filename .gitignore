@@ -1,0 +1,9 @@
+/target/
+/data/
+.vscode/
+.idea/
+*.class
+*.log
+*.mv.db
+*.trace.db
+upload_project.ps1

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMatch | Premium Movie Recommendation System</title>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="color: white;"></i>
+                </div>
+                <h1 class="logo-text">CineMatch</h1>
+            </div>
+
+            <nav>
+                <ul class="nav-menu">
+                    <li>
+                        <a class="nav-item active" data-view="dashboard">
+                            <i class="fa-solid fa-house"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-item" data-view="discover">
+                            <i class="fa-solid fa-compass"></i>
+                            <span>Discover</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-item" data-view="recommendations">
+                            <i class="fa-solid fa-circle-nodes"></i>
+                            <span>For You</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-item" data-view="watchlist">
+                            <i class="fa-solid fa-bookmark"></i>
+                            <span>My Watchlist</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- User Auth Profile Section -->
+            <div class="user-profile-section" id="user-profile-section">
+                <!-- If Logged Out -->
+                <div id="logged-out-view" style="display: flex; flex-direction: column; gap: 10px; text-align: center;">
+                    <p style="font-size: 13px; color: var(--text-muted);">Sign in to unlock personalized recommendations.</p>
+                    <button class="btn-auth" id="btn-login-trigger">Sign In</button>
+                </div>
+                <!-- If Logged In -->
+                <div id="logged-in-view" style="display: none; flex-direction: column; gap: 12px;">
+                    <div class="user-info">
+                        <div class="user-avatar" id="profile-avatar">A</div>
+                        <div class="user-details">
+                            <span class="username" id="profile-username">Alice</span>
+                            <span class="user-role">Cinephile</span>
+                        </div>
+                    </div>
+                    <button class="btn-auth" id="btn-pref-trigger" style="border-color: var(--secondary); font-size: 12px; padding: 6px;">
+                        <i class="fa-solid fa-sliders"></i> Edit Favorites
+                    </button>
+                    <button class="btn-logout" id="btn-logout">Sign Out</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Body -->
+        <main class="main-content">
+            
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-input" placeholder="Search movies by title...">
+                </div>
+                <div class="header-actions">
+                    <div class="notification-badge">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="badge"></span>
+                    </div>
+                    <div style="font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                        <span id="current-user-status" style="color: var(--text-muted);">Guest Mode</span>
+                        <i class="fa-solid fa-circle" id="user-status-dot" style="font-size: 8px; color: var(--text-dimmed);"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 1. DASHBOARD VIEW -->
+            <section class="view active" id="view-dashboard">
+                <!-- Hero Spotlight -->
+                <div class="hero-section" id="hero-spotlight">
+                    <div class="hero-backdrop" id="hero-bg" style="background-image: url('https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1200&q=80');"></div>
+                    <div class="hero-overlay"></div>
+                    <div class="hero-content">
+                        <div class="hero-tag">Spotlight</div>
+                        <h2 class="hero-title" id="hero-title">Inception</h2>
+                        <div class="hero-meta">
+                            <span id="hero-year">2010</span>
+                            <span>•</span>
+                            <div class="rating-stars">
+                                <i class="fa-solid fa-star"></i>
+                                <span id="hero-rating">4.8</span>
+                            </div>
+                            <span>•</span>
+                            <div class="imdb-badge" id="hero-imdb-rating-container" style="display: none;">
+                                <span>IMDb</span>
+                                <span id="hero-imdb-rating">8.8</span>
+                            </div>
+                        </div>
+                        <p class="hero-desc" id="hero-desc">A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.O.O., but his tragic past may doom the project.</p>
+                        <div class="hero-buttons">
+                            <button class="btn-primary" id="hero-details-btn">
+                                <i class="fa-solid fa-circle-info"></i> More Info
+                            </button>
+                            <button class="btn-secondary" id="hero-watchlist-btn">
+                                <i class="fa-solid fa-plus" id="hero-watchlist-icon"></i> Watchlist
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trending/Popular Movies -->
+                <div class="section-header">
+                    <h3 class="section-title">Trending Now</h3>
+                </div>
+                <div class="movie-grid" id="trending-grid">
+                    <!-- Dynamic -->
+                </div>
+            </section>
+
+            <!-- 2. DISCOVER VIEW -->
+            <section class="view" id="view-discover">
+                <div class="section-header">
+                    <h3 class="section-title">Discover Movies</h3>
+                </div>
+                
+                <!-- Genre Filtering Row -->
+                <div class="genre-filter-pills" id="genre-pills">
+                    <span class="genre-pill active" data-genre="all">All Genres</span>
+                    <span class="genre-pill" data-genre="Sci-Fi">Sci-Fi</span>
+                    <span class="genre-pill" data-genre="Action">Action</span>
+                    <span class="genre-pill" data-genre="Drama">Drama</span>
+                    <span class="genre-pill" data-genre="Adventure">Adventure</span>
+                    <span class="genre-pill" data-genre="Thriller">Thriller</span>
+                    <span class="genre-pill" data-genre="Crime">Crime</span>
+                    <span class="genre-pill" data-genre="Romance">Romance</span>
+                    <span class="genre-pill" data-genre="Comedy">Comedy</span>
+                    <span class="genre-pill" data-genre="Animation">Animation</span>
+                </div>
+
+                <div class="movie-grid" id="discover-grid">
+                    <!-- Dynamic -->
+                </div>
+            </section>
+
+            <!-- 3. RECOMMENDATIONS VIEW -->
+            <section class="view" id="view-recommendations">
+                <div class="section-header">
+                    <h3 class="section-title">Personalized For You</h3>
+                </div>
+
+                <!-- Recommendation Rationale Explainer -->
+                <div class="recs-explainer-card">
+                    <div class="recs-explainer-icon">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+                    <div class="recs-explainer-text">
+                        <h4>AI-Powered Taste Prediction</h4>
+                        <p id="recs-explainer-desc">
+                            We analyze your ratings history using **Collaborative Filtering** (identifying users who share your cinematic tastes) combined with **Content-Based Filtering** (scoring movies based on your genre affinity).
+                        </p>
+                    </div>
+                </div>
+
+                <div class="movie-grid" id="recommendations-grid">
+                    <!-- Dynamic -->
+                </div>
+            </section>
+
+            <!-- 4. WATCHLIST VIEW -->
+            <section class="view" id="view-watchlist">
+                <div class="section-header">
+                    <h3 class="section-title">My Watchlist</h3>
+                </div>
+                <div class="movie-grid" id="watchlist-grid">
+                    <!-- Dynamic -->
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MOVIE DETAILS MODAL (GLASSMORPHIC) -->
+    <div class="modal-overlay" id="movie-details-modal">
+        <div class="modal-container">
+            <button class="modal-close-btn" id="btn-close-details">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div class="movie-details-body">
+                <div class="modal-hero">
+                    <img id="modal-backdrop-img" src="" alt="backdrop" class="modal-backdrop-img">
+                    <div class="modal-hero-overlay"></div>
+                </div>
+                
+                <div class="modal-main-info">
+                    <div class="modal-poster">
+                        <img id="modal-poster-img" src="" alt="poster">
+                    </div>
+                    <div class="modal-title-desc">
+                        <h2 class="modal-title" id="modal-title">Inception</h2>
+                        <div class="modal-genres-list" id="modal-genres">
+                            <!-- Tags -->
+                        </div>
+                        <div class="modal-metadata">
+                            <span id="modal-year">2010</span>
+                            <span>•</span>
+                            <span id="modal-director">Dir: Christopher Nolan</span>
+                            <span>•</span>
+                            <div class="rating-stars">
+                                <i class="fa-solid fa-star"></i>
+                                <span id="modal-rating">4.8</span>
+                            </div>
+                            <span>•</span>
+                            <div class="imdb-badge" id="modal-imdb-rating-container" style="display: none;">
+                                <span>IMDb</span>
+                                <span id="modal-imdb-rating">8.8</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-content-grid">
+                    <!-- Left Side: Plot & Credits -->
+                    <div>
+                        <h4 class="detail-section-title">Overview</h4>
+                        <p class="movie-plot" id="modal-plot">
+                            A thief who steals corporate secrets through the use of dream-sharing technology...
+                        </p>
+                        <div class="movie-credits">
+                            <div class="credits-item">
+                                <span>Cast:</span> <span id="modal-cast" style="font-weight: normal; color: var(--text-muted);">Leonardo DiCaprio, Joseph Gordon-Levitt</span>
+                            </div>
+                        </div>
+
+                        <!-- Review List -->
+                        <h4 class="detail-section-title">Audience Reviews</h4>
+                        <div class="reviews-list" id="modal-reviews-list">
+                            <!-- Dynamic -->
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Interactive Action (Rate, Review) -->
+                    <div>
+                        <!-- Star Input -->
+                        <div class="rate-action-box" id="modal-rate-box">
+                            <span class="rate-title" id="modal-rate-title">YOUR RATING</span>
+                            <div class="star-rating-input" id="star-rating-input">
+                                <i class="fa-regular fa-star" data-score="1"></i>
+                                <i class="fa-regular fa-star" data-score="2"></i>
+                                <i class="fa-regular fa-star" data-score="3"></i>
+                                <i class="fa-regular fa-star" data-score="4"></i>
+                                <i class="fa-regular fa-star" data-score="5"></i>
+                            </div>
+                            <span id="rating-status-text" style="font-size: 12px; color: var(--secondary); font-weight: 500;">Click stars to rate</span>
+                        </div>
+
+                        <!-- Add Review -->
+                        <div class="add-review-box" id="modal-review-form-box">
+                            <h4 class="detail-section-title" style="font-size: 14px; margin-bottom: 8px;">Write a Review</h4>
+                            <textarea id="review-textarea" placeholder="Share your thoughts about this movie..."></textarea>
+                            <button class="btn-submit-review" id="btn-submit-review">Submit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH MODAL (LOGIN & REGISTRATION) -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal-container auth-modal">
+            <button class="modal-close-btn" id="btn-close-auth">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <!-- Login Panel -->
+            <div id="login-panel">
+                <h2 class="auth-title">Welcome Back</h2>
+                <p class="auth-subtitle">Sign in to CineMatch to customize your recommendations.</p>
+                <form class="auth-form" id="login-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="login-username">Username</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="login-username" placeholder="Enter 'alice', 'bob' or your username" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="login-password" placeholder="Enter 'password'" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-auth-submit">Sign In</button>
+                </form>
+                <p class="auth-switch">Don't have an account? <span id="switch-to-register">Register here</span></p>
+            </div>
+
+            <!-- Register Panel -->
+            <div id="register-panel" style="display: none;">
+                <h2 class="auth-title">Create Account</h2>
+                <p class="auth-subtitle">Join CineMatch to track and predict your movie ratings.</p>
+                <form class="auth-form" id="register-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="register-username">Username</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="register-username" placeholder="Pick a unique username" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">Email Address</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-envelope"></i>
+                            <input type="email" id="register-email" placeholder="you@example.com" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-lock"></i>
+                            <input type="password" id="register-password" placeholder="Password" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-auth-submit">Create Account & Login</button>
+                </form>
+                <p class="auth-switch">Already registered? <span id="switch-to-login">Sign in instead</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PREFERENCES MODAL -->
+    <div class="modal-overlay" id="preferences-modal">
+        <div class="modal-container auth-modal" style="max-width: 500px;">
+            <button class="modal-close-btn" id="btn-close-pref">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h2 class="auth-title">Select Favorite Genres</h2>
+            <p class="auth-subtitle">These preferences help us kickstart your recommendations list.</p>
+            
+            <div class="pref-grid" id="pref-genres-grid">
+                <div class="pref-checkbox-btn" data-genre="Sci-Fi">Sci-Fi</div>
+                <div class="pref-checkbox-btn" data-genre="Action">Action</div>
+                <div class="pref-checkbox-btn" data-genre="Drama">Drama</div>
+                <div class="pref-checkbox-btn" data-genre="Adventure">Adventure</div>
+                <div class="pref-checkbox-btn" data-genre="Thriller">Thriller</div>
+                <div class="pref-checkbox-btn" data-genre="Crime">Crime</div>
+                <div class="pref-checkbox-btn" data-genre="Romance">Romance</div>
+                <div class="pref-checkbox-btn" data-genre="Comedy">Comedy</div>
+                <div class="pref-checkbox-btn" data-genre="Animation">Animation</div>
+                <div class="pref-checkbox-btn" data-genre="Fantasy">Fantasy</div>
+            </div>
+
+            <button class="btn-auth-submit" id="btn-save-preferences" style="margin-top: 30px; width: 100%;">
+                Save & Update Recommendations
+            </button>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Client-Side App Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
