@@ -17,6 +17,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @Component
 @SuppressWarnings("null")
@@ -42,9 +46,16 @@ public class DataLoader implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         System.out.println("Initiating movies catalog synchronization from Oracle APEX...");
-        movieService.syncMoviesFromOracle();
+        try {
+            movieService.syncMoviesFromOracle();
+        } catch (Exception e) {
+            System.err.println("Oracle sync failed: " + e.getMessage());
+        }
 
-        if (movieRepository.count() > 0) {
+        if (movieRepository.count() == 0) {
+            System.out.println("Seeding database with default movies, users, and ratings (Oracle Sync Fallback)...");
+            seedDefaultMoviesAndRatings();
+        } else {
             System.out.println("Movies are present in local repository (either synced from Oracle or already seeded).");
             if (userRepository.count() == 0) {
                 System.out.println("Seeding users...");
@@ -55,11 +66,16 @@ public class DataLoader implements CommandLineRunner {
                 User ethan = new User("ethan", "ethan@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Thriller"));
                 userRepository.saveAll(Arrays.asList(alice, bob, charlie, diana, ethan));
             }
-            seedEpisodes();
-            return;
         }
 
-        System.out.println("Seeding database with default movies, users, and ratings (Oracle Sync Fallback)...");
+        // Import MovieLens movies if present in movies.dat
+        importMovieLensMovies();
+
+        // Seed episodes for all movies in the DB that don't have episodes yet
+        seedEpisodes();
+    }
+
+    private void seedDefaultMoviesAndRatings() throws Exception {
 
         // 1. Seed Movies
         // Using high-quality curated Unsplash images for posters/backdrops that evoke the theme
@@ -673,45 +689,233 @@ public class DataLoader implements CommandLineRunner {
         reviewRepository.save(new Review(ethan.getId(), "ethan", dbGodfather.getId(), "The pinnacle of cinematic storytelling. Every shot, every line of dialogue is perfection. Marlon Brando's presence is legendary."));
         reviewRepository.save(new Review(diana.getId(), "diana", dbSpiritedAway.getId(), "Pure magic. The hand-drawn animation is gorgeous and the story is incredibly moving. Miyazaki is a genius."));
 
-        seedEpisodes();
-        System.out.println("Seeding completed successfully.");
+        System.out.println("Default seeding completed successfully.");
+    }
+
+    private void importMovieLensMovies() {
+        try (java.io.InputStream is = getClass().getResourceAsStream("/movies.dat")) {
+            if (is != null) {
+                System.out.println("Found movies.dat in classpath. Parsing and importing MovieLens dataset...");
+                java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8));
+                String line;
+                List<Movie> moviesToSave = new ArrayList<>();
+                
+                // Get existing movie titles & years in db to avoid duplicate insert
+                List<Movie> existingMovies = movieRepository.findAll();
+                Set<String> existingKeys = existingMovies.stream()
+                        .map(m -> m.getTitle().toLowerCase() + "_" + m.getReleaseYear())
+                        .collect(Collectors.toSet());
+                
+                while ((line = reader.readLine()) != null) {
+                    if (line.trim().isEmpty()) continue;
+                    String[] parts = line.split("::");
+                    if (parts.length >= 3) {
+                        try {
+                            String titleWithYear = parts[1].trim();
+                            String genresStr = parts[2].trim();
+                            
+                            // Extract title and year (e.g., "Toy Story (1995)")
+                            String title = titleWithYear;
+                            int year = 1995;
+                            int openParen = titleWithYear.lastIndexOf('(');
+                            int closeParen = titleWithYear.lastIndexOf(')');
+                            if (openParen != -1 && closeParen != -1 && openParen < closeParen) {
+                                String yearStr = titleWithYear.substring(openParen + 1, closeParen);
+                                try {
+                                    year = Integer.parseInt(yearStr);
+                                    title = titleWithYear.substring(0, openParen).trim();
+                                } catch (NumberFormatException e) {
+                                    // ignore
+                                }
+                            }
+                            
+                            String key = title.toLowerCase() + "_" + year;
+                            if (existingKeys.contains(key)) {
+                                continue;
+                            }
+                            
+                            // Parse genres split by |
+                            List<String> genres = Arrays.asList(genresStr.split("\\|"));
+                            
+                            // Select background and poster based on primary genre
+                            String primaryGenre = genres.isEmpty() ? "Default" : genres.get(0);
+                            String poster = getUnsplashPoster(primaryGenre);
+                            String backdrop = getUnsplashBackdrop(primaryGenre);
+                            
+                            Movie movie = new Movie(
+                                    title,
+                                    "MovieLens classic movie: " + title + " (" + year + ") in genres: " + genresStr.replace("|", ", ") + ".",
+                                    year,
+                                    genres,
+                                    poster,
+                                    backdrop,
+                                    "Unknown Director",
+                                    "Cast unknown"
+                            ).withImdbRating(7.0); // default rating
+                            
+                            moviesToSave.add(movie);
+                        } catch (Exception e) {
+                            System.err.println("Error parsing MovieLens line: " + line + " - " + e.getMessage());
+                        }
+                    }
+                }
+                
+                if (!moviesToSave.isEmpty()) {
+                    movieRepository.saveAll(moviesToSave);
+                    System.out.println("Imported " + moviesToSave.size() + " MovieLens movies successfully.");
+                } else {
+                    System.out.println("All MovieLens movies from movies.dat are already imported.");
+                }
+            } else {
+                System.err.println("movies.dat not found in resources directory!");
+            }
+        } catch (Exception e) {
+            System.err.println("Error reading movies.dat: " + e.getMessage());
+        }
+    }
+
+    private String getUnsplashPoster(String genre) {
+        if (genre == null) return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&q=80";
+        switch (genre.trim()) {
+            case "Action":
+                return "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80";
+            case "Adventure":
+                return "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=500&q=80";
+            case "Animation":
+                return "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500&q=80";
+            case "Children's":
+            case "Children":
+                return "https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?w=500&q=80";
+            case "Comedy":
+                return "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=500&q=80";
+            case "Crime":
+                return "https://images.unsplash.com/photo-1506869642237-8f2e7124d53d?w=500&q=80";
+            case "Documentary":
+                return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&q=80";
+            case "Drama":
+                return "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500&q=80";
+            case "Fantasy":
+                return "https://images.unsplash.com/photo-1519074069444-1ba4e6664104?w=500&q=80";
+            case "Film-Noir":
+                return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500&q=80";
+            case "Horror":
+                return "https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=500&q=80";
+            case "Musical":
+                return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80";
+            case "Mystery":
+                return "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=500&q=80";
+            case "Romance":
+                return "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=500&q=80";
+            case "Sci-Fi":
+                return "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=500&q=80";
+            case "Thriller":
+                return "https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=500&q=80";
+            case "War":
+                return "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80";
+            case "Western":
+                return "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=500&q=80";
+            default:
+                return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&q=80";
+        }
+    }
+
+    private String getUnsplashBackdrop(String genre) {
+        if (genre == null) return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1920&q=80";
+        switch (genre.trim()) {
+            case "Action":
+                return "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=1920&q=80";
+            case "Adventure":
+                return "https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=1920&q=80";
+            case "Animation":
+                return "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1920&q=80";
+            case "Children's":
+            case "Children":
+                return "https://images.unsplash.com/photo-1485546246426-74dc88dec4d9?w=1920&q=80";
+            case "Comedy":
+                return "https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=1920&q=80";
+            case "Crime":
+                return "https://images.unsplash.com/photo-1506869642237-8f2e7124d53d?w=1920&q=80";
+            case "Documentary":
+                return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1920&q=80";
+            case "Drama":
+                return "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1920&q=80";
+            case "Fantasy":
+                return "https://images.unsplash.com/photo-1519074069444-1ba4e6664104?w=1920&q=80";
+            case "Film-Noir":
+                return "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1920&q=80";
+            case "Horror":
+                return "https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=1920&q=80";
+            case "Musical":
+                return "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=1920&q=80";
+            case "Mystery":
+                return "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&q=80";
+            case "Romance":
+                return "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=1920&q=80";
+            case "Sci-Fi":
+                return "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=80";
+            case "Thriller":
+                return "https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=1920&q=80";
+            case "War":
+                return "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=1920&q=80";
+            case "Western":
+                return "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1920&q=80";
+            default:
+                return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1920&q=80";
+        }
     }
 
     private void seedEpisodes() {
-        if (episodeRepository.count() > 0) {
-            return;
-        }
-        System.out.println("Seeding episodes for all movies...");
+        System.out.println("Checking and seeding episodes for all movies...");
         Set<String> tvShows = new HashSet<>(Arrays.asList(
             "Stranger Things", "The Blacklist", "Person of Interest", "Money Heist",
             "Breaking Bad", "You", "Orange Is the New Black", "From", "Supacell"
         ));
 
+        List<Episode> allEpisodes = episodeRepository.findAll();
+        Set<Long> movieIdsWithEpisodes = allEpisodes.stream()
+                .map(ep -> ep.getMovie().getId())
+                .collect(Collectors.toSet());
+
         List<Movie> allMovies = movieRepository.findAll();
+        List<Episode> episodesToSave = new ArrayList<>();
+        
         for (Movie m : allMovies) {
+            if (movieIdsWithEpisodes.contains(m.getId())) {
+                continue;
+            }
+            
             if (tvShows.contains(m.getTitle())) {
                 // Seed 5 episodes for Season 1
-                episodeRepository.save(new Episode(m, 1, 1, "Chapter One: Start", "The beginning of the mystery unfolds.", "2016-07-15", 45));
-                episodeRepository.save(new Episode(m, 1, 2, "Chapter Two: The Discovery", "Secrets begin to leak as investigations heat up.", "2016-07-22", 48));
-                episodeRepository.save(new Episode(m, 1, 3, "Chapter Three: Escalation", "Tension reaches a boiling point between key characters.", "2016-07-29", 50));
-                episodeRepository.save(new Episode(m, 1, 4, "Chapter Four: Crossroads", "Hard decisions must be made to protect the group.", "2016-08-05", 52));
-                episodeRepository.save(new Episode(m, 1, 5, "Chapter Five: Climax", "The truth is revealed in a stunning season finale.", "2016-08-12", 55));
+                episodesToSave.add(new Episode(m, 1, 1, "Chapter One: Start", "The beginning of the mystery unfolds.", "2016-07-15", 45));
+                episodesToSave.add(new Episode(m, 1, 2, "Chapter Two: The Discovery", "Secrets begin to leak as investigations heat up.", "2016-07-22", 48));
+                episodesToSave.add(new Episode(m, 1, 3, "Chapter Three: Escalation", "Tension reaches a boiling point between key characters.", "2016-07-29", 50));
+                episodesToSave.add(new Episode(m, 1, 4, "Chapter Four: Crossroads", "Hard decisions must be made to protect the group.", "2016-08-05", 52));
+                episodesToSave.add(new Episode(m, 1, 5, "Chapter Five: Climax", "The truth is revealed in a stunning season finale.", "2016-08-12", 55));
             } else {
                 // Movie: Seed 1 feature-length episode
                 String title = "Main Feature";
                 String desc = m.getDescription();
                 Integer duration = 120; // default movie length
-                if (m.getTitle().contains("Dune")) {
-                    duration = 155;
-                } else if (m.getTitle().contains("Interstellar")) {
-                    duration = 169;
-                } else if (m.getTitle().contains("Inception")) {
-                    duration = 148;
-                } else if (m.getTitle().contains("The Dark Knight")) {
-                    duration = 152;
+                if (m.getTitle() != null) {
+                    if (m.getTitle().contains("Dune")) {
+                        duration = 155;
+                    } else if (m.getTitle().contains("Interstellar")) {
+                        duration = 169;
+                    } else if (m.getTitle().contains("Inception")) {
+                        duration = 148;
+                    } else if (m.getTitle().contains("The Dark Knight")) {
+                        duration = 152;
+                    }
                 }
-                episodeRepository.save(new Episode(m, 1, 1, title, desc, String.valueOf(m.getReleaseYear()) + "-10-01", duration));
+                episodesToSave.add(new Episode(m, 1, 1, title, desc, String.valueOf(m.getReleaseYear()) + "-10-01", duration));
             }
+        }
+        
+        if (!episodesToSave.isEmpty()) {
+            episodeRepository.saveAll(episodesToSave);
+            System.out.println("Seeded episodes for " + episodesToSave.size() + " movies/shows.");
+        } else {
+            System.out.println("All movies/shows already have episodes.");
         }
         System.out.println("Episodes seeding complete.");
     }
