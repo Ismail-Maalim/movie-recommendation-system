@@ -45,6 +45,11 @@ public class RecommendationServiceTest {
     @BeforeEach
     public void setup() {
         recommendationService = new RecommendationService(movieRepository, ratingRepository, userRepository, watchlistRepository);
+        org.springframework.test.util.ReflectionTestUtils.setField(recommendationService, "weightUserCf", 0.35);
+        org.springframework.test.util.ReflectionTestUtils.setField(recommendationService, "weightItemCf", 0.35);
+        org.springframework.test.util.ReflectionTestUtils.setField(recommendationService, "weightContentBased", 0.30);
+        org.springframework.test.util.ReflectionTestUtils.setField(recommendationService, "decayFactor", 0.98);
+        org.springframework.test.util.ReflectionTestUtils.setField(recommendationService, "apexApiUrl", "http://mock-apex-api/ords/apex");
 
         // Define users
         targetUser = new User();
@@ -143,8 +148,86 @@ public class RecommendationServiceTest {
         // "The Dark Knight" (103L) should be recommended to Alice
         assertFalse(cfRecs.isEmpty());
         MovieRecommendation bestCF = cfRecs.get(0);
-        assertEquals("COLLABORATIVE", bestCF.getRecommendationType());
+        assertEquals("USER_COLLABORATIVE", bestCF.getRecommendationType());
         assertEquals("The Dark Knight", bestCF.getMovie().getTitle());
         assertTrue(bestCF.getMatchPercentage() > 80);
+    }
+
+    @Test
+    public void testItemCollaborativeFilteringRecommendations() {
+        // Alice (1L) rated Inception (101L) -> 5
+        List<Rating> targetRatings = List.of(new Rating(1L, 101L, 5));
+
+        // Let's create ratings so Inception (101L) and Dark Knight (103L) are rated similarly by other users
+        List<Rating> allRatings = List.of(
+                new Rating(1L, 101L, 5),
+                new Rating(2L, 101L, 5),
+                new Rating(2L, 103L, 5),
+                new Rating(3L, 101L, 4),
+                new Rating(3L, 103L, 4)
+        );
+
+        when(ratingRepository.findAll()).thenReturn(allRatings);
+
+        Set<Long> ratedMovieIds = Set.of(101L);
+        List<MovieRecommendation> cfRecs = recommendationService.getItemCollaborativeRecommendations(
+                1L, targetRatings, List.of(movieSciFi, movieDrama, movieAction), ratedMovieIds
+        );
+
+        assertFalse(cfRecs.isEmpty());
+        MovieRecommendation bestCF = cfRecs.get(0);
+        assertEquals("ITEM_COLLABORATIVE", bestCF.getRecommendationType());
+        assertEquals("The Dark Knight", bestCF.getMovie().getTitle());
+        assertTrue(bestCF.getMatchPercentage() > 80);
+    }
+
+    @Test
+    public void testEvaluateRecommendations() {
+        // Setup at least 5 ratings for evaluation
+        List<Rating> allRatings = List.of(
+                new Rating(1L, 101L, 5),
+                new Rating(1L, 102L, 4),
+                new Rating(2L, 101L, 5),
+                new Rating(2L, 103L, 5),
+                new Rating(3L, 101L, 4),
+                new Rating(3L, 103L, 4),
+                new Rating(4L, 102L, 3),
+                new Rating(4L, 103L, 4),
+                new Rating(5L, 101L, 5),
+                new Rating(5L, 102L, 5)
+        );
+
+        when(ratingRepository.findAll()).thenReturn(allRatings);
+        when(movieRepository.findAll()).thenReturn(List.of(movieSciFi, movieDrama, movieAction));
+
+        Map<String, Object> metrics = recommendationService.evaluateRecommendations();
+
+        assertNotNull(metrics);
+        assertEquals("SUCCESS", metrics.get("status"));
+        assertEquals(10, metrics.get("totalRatings"));
+        assertEquals(8, metrics.get("trainSize"));
+        assertEquals(2, metrics.get("testSize"));
+        assertTrue(metrics.containsKey("userCfRmse"));
+        assertTrue(metrics.containsKey("itemCfRmse"));
+        assertTrue(metrics.containsKey("hybridRmse"));
+    }
+
+    @Test
+    public void testEvaluateRecommendationsInsufficientData() {
+        // Setup fewer than 5 ratings
+        List<Rating> allRatings = List.of(
+                new Rating(1L, 101L, 5),
+                new Rating(1L, 102L, 4)
+        );
+
+        when(ratingRepository.findAll()).thenReturn(allRatings);
+
+        Map<String, Object> metrics = recommendationService.evaluateRecommendations();
+
+        assertNotNull(metrics);
+        assertEquals("INSUFFICIENT_DATA", metrics.get("status"));
+        assertEquals(2, metrics.get("totalRatings"));
+        assertEquals(0, metrics.get("trainSize"));
+        assertEquals(0, metrics.get("testSize"));
     }
 }

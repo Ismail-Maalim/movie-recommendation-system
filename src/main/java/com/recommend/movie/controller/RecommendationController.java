@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/recommendations")
@@ -25,5 +26,10 @@ public class RecommendationController {
         
         List<MovieRecommendation> recommendations = recommendationService.getRecommendations(userId, limit);
         return ResponseEntity.ok(recommendations);
+    }
+
+    @GetMapping("/evaluate")
+    public ResponseEntity<Map<String, Object>> evaluateRecommendations() {
+        return ResponseEntity.ok(recommendationService.evaluateRecommendations());
     }
 }
