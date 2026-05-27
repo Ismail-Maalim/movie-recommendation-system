@@ -5,21 +5,25 @@ import com.recommend.movie.model.Episode;
 import com.recommend.movie.model.Rating;
 import com.recommend.movie.model.Review;
 import com.recommend.movie.model.WatchlistItem;
+import com.recommend.movie.model.User;
 import com.recommend.movie.repository.MovieRepository;
 import com.recommend.movie.repository.EpisodeRepository;
 import com.recommend.movie.repository.RatingRepository;
 import com.recommend.movie.repository.ReviewRepository;
 import com.recommend.movie.repository.WatchlistItemRepository;
+import com.recommend.movie.repository.UserRepository;
+import com.recommend.movie.config.OracleSyncProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,25 +32,34 @@ import java.util.stream.Collectors;
 @SuppressWarnings("null")
 public class MovieService {
 
+    private static final Logger log = LoggerFactory.getLogger(MovieService.class);
+
     private final MovieRepository movieRepository;
     private final RatingRepository ratingRepository;
     private final ReviewRepository reviewRepository;
     private final WatchlistItemRepository watchlistRepository;
+    private final UserRepository userRepository;
     private final EpisodeRepository episodeRepository;
+    private final RestTemplate restTemplate;
+    private final OracleSyncProperties syncProperties;
 
-    @Value("${oracle.apex.api.url}")
-    private String apexApiUrl;
-
-    private final RestTemplate restTemplate = new RestTemplate();
+    @Value("${oracle.apex.fallback-to-local:true}")
+    private boolean fallbackToLocal;
 
     public MovieService(MovieRepository movieRepository, RatingRepository ratingRepository,
                         ReviewRepository reviewRepository, WatchlistItemRepository watchlistRepository,
-                        EpisodeRepository episodeRepository) {
+                        UserRepository userRepository,
+                        EpisodeRepository episodeRepository,
+                        @org.springframework.beans.factory.annotation.Qualifier("oracleRestTemplate") RestTemplate restTemplate,
+                        OracleSyncProperties syncProperties) {
         this.movieRepository = movieRepository;
         this.ratingRepository = ratingRepository;
         this.reviewRepository = reviewRepository;
         this.watchlistRepository = watchlistRepository;
+        this.userRepository = userRepository;
         this.episodeRepository = episodeRepository;
+        this.restTemplate = restTemplate;
+        this.syncProperties = syncProperties;
     }
 
     public List<Movie> getAllMovies() {
@@ -69,33 +82,46 @@ public class MovieService {
         return movieRepository.findByGenreIgnoreCase(genre);
     }
 
+    private Long getOracleUserId(Long localUserId) {
+        User user = userRepository.findById(localUserId)
+                .orElseThrow(() -> new RuntimeException("Local user not found"));
+
+        if (user.getOracleUserId() == null) {
+            throw new RuntimeException("Oracle user ID missing for local user: " + localUserId);
+        }
+
+        return user.getOracleUserId();
+    }
+
     @Transactional
     public Rating rateMovie(Long userId, Long movieId, int score) {
         if (score < 1 || score > 5) {
             throw new IllegalArgumentException("Rating score must be between 1 and 5");
         }
 
-        // Check if movie exists
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
 
         long timestamp = System.currentTimeMillis();
 
-        // 1. Try sending rating to Oracle APEX ORDS API
         try {
-            String url = apexApiUrl + "/ratings";
-            System.out.println("Calling Oracle APEX REST API (RateMovie): " + url);
+            Long oracleUserId = getOracleUserId(userId);
+            String url = syncProperties.getApiUrl() + "/ratings";
+            log.info("Calling Oracle APEX REST API (RateMovie): {}", url);
             Map<String, Object> payload = new HashMap<>();
-            payload.put("userId", userId);
+            payload.put("userId", oracleUserId);
             payload.put("movieId", movieId);
             payload.put("score", score);
             payload.put("timestamp", timestamp);
 
             restTemplate.postForObject(url, payload, String.class);
-            System.out.println("Successfully saved rating to Oracle APEX.");
+            log.info("Successfully saved rating to Oracle APEX.");
         } catch (Exception e) {
-            System.err.println("Failed to save rating to Oracle APEX: " + e.getMessage());
-            System.err.println("Falling back to local H2 cache...");
+            log.error("Failed to save rating to Oracle APEX: {}", e.getMessage());
+            if (!fallbackToLocal) {
+                throw new RuntimeException("Failed to save rating to Oracle APEX and fallback to local is disabled.", e);
+            }
+            log.warn("Falling back to local H2 cache...");
         }
 
         Optional<Rating> existingRating = ratingRepository.findByUserIdAndMovieId(userId, movieId);
@@ -110,8 +136,6 @@ public class MovieService {
         }
         
         Rating savedRating = ratingRepository.save(rating);
-        
-        // Recalculate average rating for the movie
         recalculateAverageRating(movie);
 
         return savedRating;
@@ -124,7 +148,6 @@ public class MovieService {
         } else {
             double sum = ratings.stream().mapToDouble(Rating::getScore).sum();
             double avg = sum / ratings.size();
-            // Round to 1 decimal place
             avg = Math.round(avg * 10.0) / 10.0;
             movie.setAverageRating(avg);
         }
@@ -141,28 +164,30 @@ public class MovieService {
             throw new IllegalArgumentException("Review text cannot be empty");
         }
         
-        // Verify movie exists
         movieRepository.findById(movieId)
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
 
         long timestamp = System.currentTimeMillis();
 
-        // 1. Try sending review to Oracle APEX ORDS API
         try {
-            String url = apexApiUrl + "/reviews";
-            System.out.println("Calling Oracle APEX REST API (AddReview): " + url);
+            Long oracleUserId = getOracleUserId(userId);
+            String url = syncProperties.getApiUrl() + "/reviews";
+            log.info("Calling Oracle APEX REST API (AddReview): {}", url);
             Map<String, Object> payload = new HashMap<>();
-            payload.put("userId", userId);
+            payload.put("userId", oracleUserId);
             payload.put("username", username);
             payload.put("movieId", movieId);
             payload.put("reviewText", reviewText.trim());
             payload.put("timestamp", timestamp);
 
             restTemplate.postForObject(url, payload, String.class);
-            System.out.println("Successfully saved review to Oracle APEX.");
+            log.info("Successfully saved review to Oracle APEX.");
         } catch (Exception e) {
-            System.err.println("Failed to save review to Oracle APEX: " + e.getMessage());
-            System.err.println("Falling back to local H2 cache...");
+            log.error("Failed to save review to Oracle APEX: {}", e.getMessage());
+            if (!fallbackToLocal) {
+                throw new RuntimeException("Failed to save review to Oracle APEX and fallback to local is disabled.", e);
+            }
+            log.warn("Falling back to local H2 cache...");
         }
 
         Review review = new Review(userId, username, movieId, reviewText.trim());
@@ -179,19 +204,22 @@ public class MovieService {
         movieRepository.findById(movieId)
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
 
-        // 1. Try adding to watchlist on Oracle APEX ORDS API
         try {
-            String url = apexApiUrl + "/watchlist";
-            System.out.println("Calling Oracle APEX REST API (AddToWatchlist): " + url);
+            Long oracleUserId = getOracleUserId(userId);
+            String url = syncProperties.getApiUrl() + "/watchlist_items";
+            log.info("Calling Oracle APEX REST API (AddToWatchlist): {}", url);
             Map<String, Object> payload = new HashMap<>();
-            payload.put("userId", userId);
+            payload.put("userId", oracleUserId);
             payload.put("movieId", movieId);
 
             restTemplate.postForObject(url, payload, String.class);
-            System.out.println("Successfully added to watchlist on Oracle APEX.");
+            log.info("Successfully added to watchlist on Oracle APEX.");
         } catch (Exception e) {
-            System.err.println("Failed to add to watchlist on Oracle APEX: " + e.getMessage());
-            System.err.println("Falling back to local H2 cache...");
+            log.error("Failed to add to watchlist on Oracle APEX: {}", e.getMessage());
+            if (!fallbackToLocal) {
+                throw new RuntimeException("Failed to add to watchlist on Oracle APEX and fallback to local is disabled.", e);
+            }
+            log.warn("Falling back to local H2 cache...");
         }
 
         Optional<WatchlistItem> existing = watchlistRepository.findByUserIdAndMovieId(userId, movieId);
@@ -205,15 +233,18 @@ public class MovieService {
 
     @Transactional
     public void removeFromWatchlist(Long userId, Long movieId) {
-        // 1. Try removing from watchlist on Oracle APEX ORDS API
         try {
-            String url = apexApiUrl + "/watchlist?userId=" + userId + "&movieId=" + movieId;
-            System.out.println("Calling Oracle APEX REST API (RemoveFromWatchlist): " + url);
+            Long oracleUserId = getOracleUserId(userId);
+            String url = syncProperties.getApiUrl() + "/watchlist_items?userId=" + oracleUserId + "&movieId=" + movieId;
+            log.info("Calling Oracle APEX REST API (RemoveFromWatchlist): {}", url);
             restTemplate.delete(url);
-            System.out.println("Successfully removed from watchlist on Oracle APEX.");
+            log.info("Successfully removed from watchlist on Oracle APEX.");
         } catch (Exception e) {
-            System.err.println("Failed to remove from watchlist on Oracle APEX: " + e.getMessage());
-            System.err.println("Falling back to local H2 cache...");
+            log.error("Failed to remove from watchlist on Oracle APEX: {}", e.getMessage());
+            if (!fallbackToLocal) {
+                throw new RuntimeException("Failed to remove from watchlist on Oracle APEX and fallback to local is disabled.", e);
+            }
+            log.warn("Falling back to local H2 cache...");
         }
 
         watchlistRepository.findByUserIdAndMovieId(userId, movieId)
@@ -232,124 +263,202 @@ public class MovieService {
 
     @Transactional
     public void syncMoviesFromOracle() {
+        if (!syncProperties.getSync().isEnabled()) {
+            log.info("Oracle APEX synchronization is disabled in configuration.");
+            return;
+        }
+
+        log.info("Starting Oracle APEX synchronization...");
+        long startTime = System.currentTimeMillis();
+
         try {
-            String moviesUrl = apexApiUrl + "/movies";
-            String genresUrl = apexApiUrl + "/movie_genres";
-            System.out.println("Syncing movies catalog from Oracle APEX ORDS: " + moviesUrl);
-            
-            ApexMovieQueryResponse movieResponse = restTemplate.getForObject(moviesUrl, ApexMovieQueryResponse.class);
-            if (movieResponse == null || movieResponse.getItems() == null || movieResponse.getItems().isEmpty()) {
-                System.out.println("No movies returned from Oracle APEX ORDS endpoint.");
+            String baseUrl = syncProperties.getApiUrl();
+            if (baseUrl == null || baseUrl.trim().isEmpty()) {
+                log.warn("Oracle APEX API URL is not configured. Skipping synchronization.");
                 return;
             }
-            
-            System.out.println("Syncing genres mapping from Oracle APEX ORDS: " + genresUrl);
-            ApexGenreQueryResponse genreResponse = restTemplate.getForObject(genresUrl, ApexGenreQueryResponse.class);
-            Map<Long, List<String>> genreMap = new HashMap<>();
-            if (genreResponse != null && genreResponse.getItems() != null) {
-                for (ApexGenreItem genreItem : genreResponse.getItems()) {
+
+            // 1. Fetch movies
+            List<ApexMovieItem> movies = fetchMoviesFromApex(baseUrl);
+            if (movies.isEmpty()) {
+                log.warn("No movies returned from Oracle APEX ORDS endpoint.");
+                return;
+            }
+
+            // 2. Fetch genres mapping
+            Map<Long, List<String>> genreMap = fetchGenresFromApex(baseUrl);
+
+            // 3. Upsert movies
+            int movieSyncCount = 0;
+            for (ApexMovieItem item : movies) {
+                if (item.getId() == null || item.getTitle() == null) continue;
+                List<String> genres = genreMap.get(item.getId());
+                if (genres == null || genres.isEmpty() || (genres.size() == 1 && "Sci-Fi".equals(genres.get(0)))) {
+                    if (item.getDescription() != null && item.getDescription().contains("|")) {
+                        genres = new java.util.ArrayList<>(Arrays.asList(item.getDescription().split("\\|")));
+                    } else if (genres == null || genres.isEmpty()) {
+                        genres = new java.util.ArrayList<>(Arrays.asList("Sci-Fi"));
+                    }
+                }
+                upsertMovie(item, genres);
+                movieSyncCount++;
+            }
+            log.info("Successfully synchronized {} movies from Oracle APEX to local H2 cache.", movieSyncCount);
+
+            // 4. Fetch and Sync episodes
+            List<ApexEpisodeItem> episodes = fetchEpisodesFromApex(baseUrl);
+            int episodeSyncCount = 0;
+            for (ApexEpisodeItem item : episodes) {
+                if (item.getMovieId() == null || item.getSeasonNumber() == null || item.getEpisodeNumber() == null) continue;
+                upsertEpisode(item);
+                episodeSyncCount++;
+            }
+            if (episodeSyncCount > 0) {
+                log.info("Successfully synchronized {} episodes from Oracle APEX.", episodeSyncCount);
+            }
+
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("Oracle APEX synchronization completed in {} ms.", duration);
+
+        } catch (Exception e) {
+            log.error("Failed to synchronize movies from Oracle APEX", e);
+            log.warn("Falling back to local H2 cache / seeded records.");
+        }
+    }
+
+    private List<ApexMovieItem> fetchMoviesFromApex(String baseUrl) {
+        String url = baseUrl + "/movies";
+        log.info("Syncing movies catalog from Oracle APEX ORDS: {}", url);
+        try {
+            ApexMovieQueryResponse response = restTemplate.getForObject(url, ApexMovieQueryResponse.class);
+            if (response != null && response.getItems() != null) {
+                return response.getItems();
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch movies from Oracle APEX: {}", e.getMessage());
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    private Map<Long, List<String>> fetchGenresFromApex(String baseUrl) {
+        String url = baseUrl + "/movie_genres";
+        log.info("Syncing genres mapping from Oracle APEX ORDS: {}", url);
+        Map<Long, List<String>> genreMap = new HashMap<>();
+        try {
+            ApexGenreQueryResponse response = restTemplate.getForObject(url, ApexGenreQueryResponse.class);
+            if (response != null && response.getItems() != null) {
+                for (ApexGenreItem genreItem : response.getItems()) {
                     if (genreItem.getMovieId() != null && genreItem.getGenre() != null) {
                         genreMap.computeIfAbsent(genreItem.getMovieId(), k -> new java.util.ArrayList<>())
                                 .add(genreItem.getGenre());
                     }
                 }
             }
+        } catch (Exception e) {
+            log.error("Failed to fetch genres from Oracle APEX: {}", e.getMessage());
+        }
+        return genreMap;
+    }
 
-            for (ApexMovieItem item : movieResponse.getItems()) {
-                if (item.getId() == null || item.getTitle() == null) continue;
-                
-                List<String> genres = genreMap.get(item.getId());
-                if (genres == null || genres.isEmpty()) {
-                    genres = Arrays.asList("Sci-Fi"); // fallback default genre
-                }
-                
-                Optional<Movie> existingOpt = movieRepository.findById(item.getId());
-                Movie movie;
-                if (existingOpt.isPresent()) {
-                    movie = existingOpt.get();
-                    movie.setTitle(item.getTitle());
-                    movie.setDescription(item.getDescription());
-                    movie.setReleaseYear(item.getReleaseYear() != null ? item.getReleaseYear() : 2024);
-                    movie.setGenres(genres);
-                    movie.setPosterUrl(item.getPosterUrl());
-                    movie.setBackdropUrl(item.getBackdropUrl());
-                    movie.setDirector(item.getDirector());
-                    movie.setCastMembers(item.getCastMembers());
-                    if (item.getAverageRating() != null) {
-                        movie.setAverageRating(item.getAverageRating());
-                    }
-                    if (item.getImdbRating() != null) {
-                        movie.setImdbRating(item.getImdbRating());
-                    }
-                } else {
-                    movie = new Movie(
-                            item.getTitle(),
-                            item.getDescription(),
-                            item.getReleaseYear() != null ? item.getReleaseYear() : 2024,
-                            genres,
-                            item.getPosterUrl(),
-                            item.getBackdropUrl(),
-                            item.getDirector(),
-                            item.getCastMembers()
-                    );
-                    movie.setId(item.getId());
-                    if (item.getAverageRating() != null) {
-                        movie.setAverageRating(item.getAverageRating());
-                    }
-                    if (item.getImdbRating() != null) {
-                        movie.setImdbRating(item.getImdbRating());
-                    }
-                }
-                movieRepository.save(movie);
-            }
-            System.out.println("Successfully synchronized movies from Oracle APEX to local H2 cache.");
-
-            // Sync episodes catalog from Oracle APEX ORDS
-            try {
-                String episodesUrl = apexApiUrl + "/episodes";
-                System.out.println("Syncing episodes catalog from Oracle APEX ORDS: " + episodesUrl);
-                ApexEpisodeQueryResponse episodeResponse = restTemplate.getForObject(episodesUrl, ApexEpisodeQueryResponse.class);
-                if (episodeResponse != null && episodeResponse.getItems() != null) {
-                    for (ApexEpisodeItem item : episodeResponse.getItems()) {
-                        if (item.getMovieId() == null || item.getSeasonNumber() == null || item.getEpisodeNumber() == null) continue;
-                        
-                        Optional<Movie> movieOpt = movieRepository.findById(item.getMovieId());
-                        if (movieOpt.isPresent()) {
-                            Movie movie = movieOpt.get();
-                            List<Episode> existingEpisodes = episodeRepository.findByMovieIdOrderBySeasonNumberAscEpisodeNumberAsc(movie.getId());
-                            Optional<Episode> existingEpisodeOpt = existingEpisodes.stream()
-                                    .filter(e -> e.getSeasonNumber() == item.getSeasonNumber() && e.getEpisodeNumber() == item.getEpisodeNumber())
-                                    .findFirst();
-                                    
-                            Episode episode;
-                            if (existingEpisodeOpt.isPresent()) {
-                                episode = existingEpisodeOpt.get();
-                                episode.setTitle(item.getTitle() != null ? item.getTitle() : "Episode " + item.getEpisodeNumber());
-                                episode.setDescription(item.getDescription());
-                                episode.setAirDate(item.getAirDate());
-                                episode.setDurationMinutes(item.getDurationMinutes());
-                            } else {
-                                episode = new Episode(
-                                        movie,
-                                        item.getSeasonNumber(),
-                                        item.getEpisodeNumber(),
-                                        item.getTitle() != null ? item.getTitle() : "Episode " + item.getEpisodeNumber(),
-                                        item.getDescription(),
-                                        item.getAirDate(),
-                                        item.getDurationMinutes()
-                                );
-                            }
-                            episodeRepository.save(episode);
-                        }
-                    }
-                    System.out.println("Successfully synchronized episodes from Oracle APEX.");
-                }
-            } catch (Exception e) {
-                System.err.println("Failed to synchronize episodes from Oracle APEX: " + e.getMessage());
+    private List<ApexEpisodeItem> fetchEpisodesFromApex(String baseUrl) {
+        String url = baseUrl + "/episodes";
+        log.info("Syncing episodes catalog from Oracle APEX ORDS: {}", url);
+        try {
+            ApexEpisodeQueryResponse response = restTemplate.getForObject(url, ApexEpisodeQueryResponse.class);
+            if (response != null && response.getItems() != null) {
+                return response.getItems();
             }
         } catch (Exception e) {
-            System.err.println("Failed to synchronize movies from Oracle APEX: " + e.getMessage());
-            System.err.println("Falling back to local H2 cache / seeded records.");
+            log.error("Failed to fetch episodes from Oracle APEX: {}", e.getMessage());
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    private void upsertMovie(ApexMovieItem item, List<String> genres) {
+        Optional<Movie> existingOpt = movieRepository.findById(item.getId());
+        
+        if (existingOpt.isEmpty() && item.getTitle() != null) {
+            existingOpt = movieRepository.findByTitleIgnoreCase(item.getTitle());
+        }
+
+        String rawDesc = item.getDescription();
+        String formattedDesc = rawDesc;
+        if (rawDesc != null && rawDesc.contains("|")) {
+            formattedDesc = "Classic movie in genres: " + rawDesc.replace("|", ", ") + ".";
+        }
+
+        Movie movie;
+        if (existingOpt.isPresent()) {
+            movie = existingOpt.get();
+            movie.setTitle(item.getTitle());
+            movie.setDescription(formattedDesc);
+            movie.setReleaseYear(item.getReleaseYear() != null ? item.getReleaseYear() : 2024);
+            if (movie.getGenres() == null) {
+                movie.setGenres(new java.util.ArrayList<>(genres));
+            } else {
+                movie.getGenres().clear();
+                movie.getGenres().addAll(genres);
+            }
+            movie.setPosterUrl(item.getPosterUrl());
+            movie.setBackdropUrl(item.getBackdropUrl());
+            movie.setDirector(item.getDirector());
+            movie.setCastMembers(item.getCastMembers());
+            if (item.getAverageRating() != null) {
+                movie.setAverageRating(item.getAverageRating());
+            }
+            if (item.getImdbRating() != null) {
+                movie.setImdbRating(item.getImdbRating());
+            }
+        } else {
+            movie = new Movie(
+                    item.getTitle(),
+                    formattedDesc,
+                    item.getReleaseYear() != null ? item.getReleaseYear() : 2024,
+                    new java.util.ArrayList<>(genres),
+                    item.getPosterUrl(),
+                    item.getBackdropUrl(),
+                    item.getDirector(),
+                    item.getCastMembers()
+            );
+            movie.setId(item.getId());
+            if (item.getAverageRating() != null) {
+                movie.setAverageRating(item.getAverageRating());
+            }
+            if (item.getImdbRating() != null) {
+                movie.setImdbRating(item.getImdbRating());
+            }
+        }
+        movieRepository.save(movie);
+    }
+
+    private void upsertEpisode(ApexEpisodeItem item) {
+        Optional<Movie> movieOpt = movieRepository.findById(item.getMovieId());
+        if (movieOpt.isPresent()) {
+            Movie movie = movieOpt.get();
+            List<Episode> existingEpisodes = episodeRepository.findByMovieIdOrderBySeasonNumberAscEpisodeNumberAsc(movie.getId());
+            Optional<Episode> existingEpisodeOpt = existingEpisodes.stream()
+                    .filter(e -> e.getSeasonNumber() == item.getSeasonNumber() && e.getEpisodeNumber() == item.getEpisodeNumber())
+                    .findFirst();
+                    
+            Episode episode;
+            if (existingEpisodeOpt.isPresent()) {
+                episode = existingEpisodeOpt.get();
+                episode.setTitle(item.getTitle() != null ? item.getTitle() : "Episode " + item.getEpisodeNumber());
+                episode.setDescription(item.getDescription());
+                episode.setAirDate(item.getAirDate());
+                episode.setDurationMinutes(item.getDurationMinutes());
+            } else {
+                episode = new Episode(
+                        movie,
+                        item.getSeasonNumber(),
+                        item.getEpisodeNumber(),
+                        item.getTitle() != null ? item.getTitle() : "Episode " + item.getEpisodeNumber(),
+                        item.getDescription(),
+                        item.getAirDate(),
+                        item.getDurationMinutes()
+                );
+            }
+            episodeRepository.save(episode);
         }
     }
 

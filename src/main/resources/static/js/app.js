@@ -1,7 +1,7 @@
 // CineMatch Application Logic
 
 // API Configuration
-const API_BASE = '/api';
+const API_BASE = window.location.port === '5500' ? 'http://localhost:8080/api' : '/api';
 
 // Global Application State
 const state = {
@@ -53,9 +53,12 @@ const elements = {
     scifiActionRow: document.getElementById('scifi-action-row'),
     dramaClassicsRow: document.getElementById('drama-classics-row'),
     discoverGrid: document.getElementById('discover-grid'),
+    searchGuessContainer: document.getElementById('search-guess-container'),
     recommendationsGrid: document.getElementById('recommendations-grid'),
     watchlistGrid: document.getElementById('watchlist-grid'),
     genrePills: document.getElementById('genre-pills'),
+    discoverSort: document.getElementById('discover-sort'),
+    discoverYear: document.getElementById('discover-year'),
     recsExplainerDesc: document.getElementById('recs-explainer-desc'),
     
     // Onboarding Wizard
@@ -105,6 +108,28 @@ const elements = {
     switchToLogin: document.getElementById('switch-to-login'),
     loginForm: document.getElementById('login-form'),
     registerForm: document.getElementById('register-form'),
+    otpPanel: document.getElementById('otp-panel'),
+    otpForm: document.getElementById('otp-form'),
+    otpCode: document.getElementById('otp-code'),
+    cancelOtp: document.getElementById('cancel-otp'),
+    oauthEmailPanel: document.getElementById('oauth-email-panel'),
+    oauthEmailTitle: document.getElementById('oauth-email-title'),
+    oauthEmailForm: document.getElementById('oauth-email-form'),
+    oauthEmailInput: document.getElementById('oauth-email-input'),
+    cancelOauthEmail: document.getElementById('cancel-oauth-email'),
+    googleChooserPanel: document.getElementById('google-chooser-panel'),
+    cancelGoogleChooser: document.getElementById('cancel-google-chooser'),
+    appleChooserPanel: document.getElementById('apple-chooser-panel'),
+    cancelAppleChooser: document.getElementById('cancel-apple-chooser'),
+    
+    // Settings Modal
+    btnSettingsTrigger: document.getElementById('btn-settings-trigger'),
+    settingsModal: document.getElementById('settings-modal'),
+    btnCloseSettings: document.getElementById('btn-close-settings'),
+    settingsForm: document.getElementById('settings-form'),
+    settingsUsername: document.getElementById('settings-username'),
+    settingsEmail: document.getElementById('settings-email'),
+    settingsAvatarPreview: document.getElementById('settings-avatar-preview'),
     
     // Preferences Modal
     preferencesModal: document.getElementById('preferences-modal'),
@@ -139,6 +164,13 @@ async function initApp() {
     // Load initial data
     await fetchMovies();
     renderDashboard();
+
+    // Check if view parameter is passed in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewParam = urlParams.get('view');
+    if (viewParam) {
+        switchView(viewParam);
+    }
 }
 
 // Event Listeners Setup
@@ -157,11 +189,29 @@ function setupEventListeners() {
     elements.switchToRegister.addEventListener('click', () => {
         elements.loginPanel.style.display = 'none';
         elements.registerPanel.style.display = 'block';
+        // Reset password input and validation status
+        const registerPasswordInput = document.getElementById('register-password');
+        if (registerPasswordInput) {
+            registerPasswordInput.value = '';
+            validatePasswordRules('');
+        }
     });
     elements.switchToLogin.addEventListener('click', () => {
         elements.registerPanel.style.display = 'none';
         elements.loginPanel.style.display = 'block';
     });
+
+    // Toggle password visibility eye icons
+    // Password visibility toggle is handled globally via inline onclick in index.html to ensure 100% reliability and click capture.
+
+    // Password strength indicator event listener
+    const registerPasswordInput = document.getElementById('register-password');
+    if (registerPasswordInput) {
+        registerPasswordInput.addEventListener('input', (e) => {
+            const pwd = e.target.value;
+            validatePasswordRules(pwd);
+        });
+    }
 
     // Preferences modal triggers
     elements.btnPrefTrigger.addEventListener('click', openPreferencesModal);
@@ -180,19 +230,112 @@ function setupEventListeners() {
     // Sign out button
     elements.btnLogout.addEventListener('click', handleLogout);
 
+    // Onboarding page trigger
+    const btnOnboardingTrigger = document.getElementById('btn-onboarding-trigger');
+    if (btnOnboardingTrigger) {
+        btnOnboardingTrigger.addEventListener('click', () => {
+            if (state.currentUser) {
+                window.location.href = `onboarding.html?userId=${state.currentUser.id}`;
+            }
+        });
+    }
+
     // Auth form submissions
     elements.loginForm.addEventListener('submit', handleLogin);
     elements.registerForm.addEventListener('submit', handleRegister);
+
+    // Settings modal events
+    if (elements.btnSettingsTrigger) {
+        elements.btnSettingsTrigger.addEventListener('click', openSettingsModal);
+    }
+    if (elements.btnCloseSettings) {
+        elements.btnCloseSettings.addEventListener('click', () => closeModal(elements.settingsModal));
+    }
+    if (elements.settingsForm) {
+        elements.settingsForm.addEventListener('submit', handleSaveSettings);
+    }
+
+    // Avatar selector interactive events
+    document.querySelectorAll('.avatar-icon-option').forEach(el => {
+        el.addEventListener('click', (e) => {
+            document.querySelectorAll('.avatar-icon-option').forEach(opt => opt.classList.remove('active'));
+            el.classList.add('active');
+            updateAvatarPreview();
+        });
+    });
+
+    document.querySelectorAll('.avatar-gradient-option').forEach(el => {
+        el.addEventListener('click', (e) => {
+            document.querySelectorAll('.avatar-gradient-option').forEach(opt => opt.classList.remove('active'));
+            el.classList.add('active');
+            updateAvatarPreview();
+        });
+    });
+
+    // OAuth simulated events
+    if (elements.cancelGoogleChooser) {
+        elements.cancelGoogleChooser.addEventListener('click', () => {
+            if (elements.googleChooserPanel) elements.googleChooserPanel.style.display = 'none';
+            elements.loginPanel.style.display = 'block';
+        });
+    }
+    if (elements.cancelAppleChooser) {
+        elements.cancelAppleChooser.addEventListener('click', () => {
+            if (elements.appleChooserPanel) elements.appleChooserPanel.style.display = 'none';
+            elements.loginPanel.style.display = 'block';
+        });
+    }
+    if (elements.cancelOauthEmail) {
+        elements.cancelOauthEmail.addEventListener('click', () => {
+            elements.oauthEmailPanel.style.display = 'none';
+            if (state.oauthProvider === 'google' && elements.googleChooserPanel) {
+                elements.googleChooserPanel.style.display = 'block';
+            } else if (state.oauthProvider === 'apple' && elements.appleChooserPanel) {
+                elements.appleChooserPanel.style.display = 'block';
+            } else {
+                elements.loginPanel.style.display = 'block';
+            }
+        });
+    }
+    if (elements.oauthEmailForm) {
+        elements.oauthEmailForm.addEventListener('submit', handleOAuthEmailSubmit);
+    }
+    if (elements.cancelOtp) {
+        elements.cancelOtp.addEventListener('click', () => {
+            elements.otpPanel.style.display = 'none';
+            if (state.oauthSource === 'chooser') {
+                if (state.oauthProvider === 'google' && elements.googleChooserPanel) {
+                    elements.googleChooserPanel.style.display = 'block';
+                } else if (state.oauthProvider === 'apple' && elements.appleChooserPanel) {
+                    elements.appleChooserPanel.style.display = 'block';
+                } else {
+                    elements.loginPanel.style.display = 'block';
+                }
+            } else {
+                elements.oauthEmailPanel.style.display = 'block';
+            }
+        });
+    }
+    if (elements.otpForm) {
+        elements.otpForm.addEventListener('submit', handleOtpSubmit);
+    }
 
     // Genre pill filtering
     elements.genrePills.addEventListener('click', (e) => {
         if (e.target.classList.contains('genre-pill')) {
             document.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
             e.target.classList.add('active');
-            const genre = e.target.getAttribute('data-genre');
-            filterDiscoverByGenre(genre);
+            applyDiscoverFilters();
         }
     });
+
+    // Discover sorting and era filtering
+    if (elements.discoverSort) {
+        elements.discoverSort.addEventListener('change', applyDiscoverFilters);
+    }
+    if (elements.discoverYear) {
+        elements.discoverYear.addEventListener('change', applyDiscoverFilters);
+    }
 
     // Close modals on clicking outside container
     window.addEventListener('click', (e) => {
@@ -257,6 +400,8 @@ function switchView(viewName) {
         elements.searchInput.value = '';
         document.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
         document.querySelector('.genre-pill[data-genre="all"]').classList.add('active');
+        if (elements.discoverSort) elements.discoverSort.value = 'default';
+        if (elements.discoverYear) elements.discoverYear.value = 'all';
         renderDiscover(state.moviesList);
     } else if (viewName === 'recommendations') {
         fetchRecommendations();
@@ -536,7 +681,9 @@ function createMovieCard(movie, recommendation = null) {
         matchBadgeHtml = `<div class="recommendation-match">${recommendation.matchPercentage}% Match</div>`;
         
         let typeText = recommendation.recommendationType.replace('_', ' ');
-        typeBadgeHtml = `<div class="recommendation-type">${typeText}</div>`;
+        if (!typeText.toLowerCase().includes('hybrid') && !typeText.toLowerCase().includes('oracle')) {
+            typeBadgeHtml = `<div class="recommendation-type">${typeText}</div>`;
+        }
     }
 
     card.innerHTML = `
@@ -585,16 +732,62 @@ function createMovieCard(movie, recommendation = null) {
     return card;
 }
 
-// Filter Discover View by Genre
-function filterDiscoverByGenre(genre) {
-    if (genre === 'all') {
-        renderDiscover(state.moviesList);
-    } else {
-        const filtered = state.moviesList.filter(m => 
+// Apply Discover Filters & Sorting
+function applyDiscoverFilters() {
+    const activePill = document.querySelector('.genre-pill.active');
+    const genre = activePill ? activePill.getAttribute('data-genre') : 'all';
+    
+    // Fallback: Query DOM dynamically to ensure elements are resolved
+    const sortSelect = document.getElementById('discover-sort');
+    const yearSelect = document.getElementById('discover-year');
+    const sortBy = sortSelect ? sortSelect.value : 'default';
+    const era = yearSelect ? yearSelect.value : 'all';
+
+    let filtered = [...state.moviesList];
+
+    // 1. Genre filter
+    if (genre && genre !== 'all') {
+        filtered = filtered.filter(m => 
             m.genres.some(g => g.toLowerCase() === genre.toLowerCase())
         );
-        renderDiscover(filtered);
     }
+
+    // 2. Era filter
+    if (era && era !== 'all') {
+        if (era === '2020s') {
+            filtered = filtered.filter(m => m.releaseYear >= 2020);
+        } else if (era === '2010s') {
+            filtered = filtered.filter(m => m.releaseYear >= 2010 && m.releaseYear <= 2019);
+        } else if (era === '2000s') {
+            filtered = filtered.filter(m => m.releaseYear >= 2000 && m.releaseYear <= 2009);
+        } else if (era === '1990s') {
+            filtered = filtered.filter(m => m.releaseYear >= 1990 && m.releaseYear <= 1999);
+        } else if (era === 'classic') {
+            filtered = filtered.filter(m => m.releaseYear < 1990);
+        }
+    }
+
+    // 3. Sorting
+    if (sortBy === 'recent') {
+        filtered.sort((a, b) => b.releaseYear - a.releaseYear);
+    } else if (sortBy === 'popular') {
+        // Sort by average rating, fallback to IMDb, fallback to release year
+        filtered.sort((a, b) => {
+            if (b.averageRating !== a.averageRating) {
+                return b.averageRating - a.averageRating;
+            }
+            if (b.imdbRating !== a.imdbRating) {
+                return b.imdbRating - a.imdbRating;
+            }
+            return b.releaseYear - a.releaseYear;
+        });
+    } else if (sortBy === 'imdb') {
+        filtered.sort((a, b) => b.imdbRating - a.imdbRating);
+    } else if (sortBy === 'az') {
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+    renderDiscover(filtered);
 }
 
 // Search Logic
@@ -608,6 +801,7 @@ async function handleSearch() {
     }
 
     if (query.length === 0) {
+        if (elements.searchGuessContainer) elements.searchGuessContainer.style.display = 'none';
         renderDiscover(state.moviesList);
         return;
     }
@@ -616,11 +810,111 @@ async function handleSearch() {
         const response = await fetch(`${API_BASE}/movies?search=${encodeURIComponent(query)}`);
         if (response.ok) {
             const results = await response.json();
-            renderDiscover(results);
+            
+            if (results.length > 0) {
+                // Clear search guess container since matches exist locally
+                if (elements.searchGuessContainer) elements.searchGuessContainer.style.display = 'none';
+                renderDiscover(results);
+            } else {
+                // No local match: search internet (TMDB) to guess title and recommend similar
+                guessAndSuggestFromInternet(query);
+            }
         }
     } catch (e) {
         console.error(e);
+        showNoLocalResults(query);
     }
+}
+
+// Autocomplete and Guess from Internet
+async function guessAndSuggestFromInternet(query) {
+    try {
+        const tmdbApiKey = '8265bd1679663a7ea12ac168ea84d2e8';
+        const url = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            showNoLocalResults(query);
+            return;
+        }
+
+        const data = await res.json();
+        if (!data.results || data.results.length === 0) {
+            showNoLocalResults(query);
+            return;
+        }
+
+        // Retrieve first relevant search guess
+        const guess = data.results[0];
+        const guessedTitle = guess.title || guess.name;
+        
+        if (!guessedTitle) {
+            showNoLocalResults(query);
+            return;
+        }
+
+        // Map TMDB genre IDs to our local categories
+        const tmdbGenreIds = guess.genre_ids || [];
+        const TMDB_GENRE_MAP = {
+            28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
+            99: "Documentary", 18: "Drama", 10751: "Children's", 14: "Fantasy",
+            36: "History", 27: "Horror", 10402: "Musical", 9648: "Mystery",
+            10749: "Romance", 878: "Sci-Fi", 53: "Thriller", 10752: "War", 37: "Western",
+            10759: "Action", 10762: "Children's", 10765: "Sci-Fi"
+        };
+
+        const targetGenres = tmdbGenreIds.map(id => TMDB_GENRE_MAP[id]).filter(Boolean);
+
+        // Find similar movies locally
+        let recommendations = [];
+        if (targetGenres.length > 0) {
+            recommendations = state.moviesList.filter(m => 
+                m.genres.some(g => targetGenres.some(tg => tg.toLowerCase() === g.toLowerCase()))
+            );
+        }
+
+        if (recommendations.length === 0) {
+            recommendations = [...state.moviesList];
+        }
+
+        // Sort suggestions by popularity and rating
+        recommendations.sort((a, b) => {
+            if (b.averageRating !== a.averageRating) return b.averageRating - a.averageRating;
+            return b.imdbRating - a.imdbRating;
+        });
+
+        const limitedRecs = recommendations.slice(0, 12);
+
+        // Render guess header and recommendations grid
+        if (elements.searchGuessContainer) {
+            elements.searchGuessContainer.innerHTML = `
+                <div class="search-guess-banner">
+                    <div class="search-guess-icon">🍿</div>
+                    <div class="search-guess-text">
+                        Looking for <strong style="color: var(--secondary);">"${guessedTitle}"</strong>? We don't have that yet, but you may like:
+                    </div>
+                </div>
+            `;
+            elements.searchGuessContainer.style.display = 'block';
+        }
+
+        renderDiscover(limitedRecs);
+
+    } catch (err) {
+        console.error("TMDB autocomplete guess failed:", err);
+        showNoLocalResults(query);
+    }
+}
+
+function showNoLocalResults(query) {
+    if (elements.searchGuessContainer) {
+        elements.searchGuessContainer.style.display = 'none';
+    }
+    elements.discoverGrid.innerHTML = `
+        <div class="no-reviews">
+            <i class="fa-solid fa-face-frown" style="font-size: 28px; color: var(--text-muted); margin-bottom: 12px;"></i>
+            <p>We couldn't find any results for "${query}".</p>
+        </div>
+    `;
 }
 
 // Toggle Watchlist Operation
@@ -1160,8 +1454,8 @@ async function handleRegister(e) {
             
             updateUserUI();
             
-            // Trigger interactive multi-step onboarding wizard
-            startOnboardingWizard();
+            // Redirect to onboarding page instead of showing the modal
+            window.location.href = `onboarding.html?userId=${user.id}`;
         } else {
             const err = await response.json();
             showToast(err.message || 'Registration failed', 'error');
@@ -1197,9 +1491,16 @@ function updateUserUI() {
         elements.loggedOutView.style.display = 'none';
         elements.loggedInView.style.display = 'flex';
         
-        // Avatar Initial
-        const firstLetter = state.currentUser.username.substring(0,1).toUpperCase();
-        elements.profileAvatar.textContent = firstLetter;
+        // Avatar Selection Render
+        if (state.currentUser.avatar && state.currentUser.avatar.includes('|')) {
+            const [iconClass, gradientClass] = state.currentUser.avatar.split('|');
+            elements.profileAvatar.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            elements.profileAvatar.className = `user-avatar ${gradientClass}`;
+        } else {
+            const firstLetter = state.currentUser.username.substring(0,1).toUpperCase();
+            elements.profileAvatar.textContent = firstLetter;
+            elements.profileAvatar.className = 'user-avatar';
+        }
         elements.profileUsername.textContent = state.currentUser.username;
         elements.currentUserStatus.textContent = state.currentUser.username;
         elements.userStatusDot.style.color = '#10b981'; // Green active status
@@ -1626,5 +1927,347 @@ async function submitOnboardingData() {
         console.error(e);
         showToast('Error finalizing onboarding profile', 'error');
         closeModal(elements.onboardingWizardModal);
+    }
+}
+
+// Password strength live validation
+function validatePasswordRules(pwd) {
+    const specialChars = "!@#$%^&*()-_=+[]{}|;:',.<>?/`~";
+    
+    const rules = {
+        length: pwd.length >= 8,
+        upper: /[A-Z]/.test(pwd),
+        lower: /[a-z]/.test(pwd),
+        digit: /[0-9]/.test(pwd),
+        special: [...pwd].some(ch => specialChars.includes(ch))
+    };
+
+    for (const [ruleName, isValid] of Object.entries(rules)) {
+        const element = document.getElementById(`rule-${ruleName}`);
+        if (element) {
+            const icon = element.querySelector('i');
+            if (isValid) {
+                element.classList.add('valid');
+                if (icon) {
+                    icon.className = 'fa-solid fa-circle-check';
+                }
+            } else {
+                element.classList.remove('valid');
+                if (icon) {
+                    icon.className = 'fa-regular fa-circle';
+                }
+            }
+        }
+    }
+}
+
+// OAUTH FLOW & SETTINGS LOGIC
+
+// Start OAuth authentication sequence
+function startOAuthFlow(provider) {
+    state.oauthProvider = provider;
+    elements.loginPanel.style.display = 'none';
+    elements.registerPanel.style.display = 'none';
+    if (elements.oauthEmailPanel) elements.oauthEmailPanel.style.display = 'none';
+    if (elements.otpPanel) elements.otpPanel.style.display = 'none';
+    if (elements.googleChooserPanel) elements.googleChooserPanel.style.display = 'none';
+    if (elements.appleChooserPanel) elements.appleChooserPanel.style.display = 'none';
+    
+    if (provider === 'google' && elements.googleChooserPanel) {
+        elements.googleChooserPanel.style.display = 'block';
+    } else if (provider === 'apple' && elements.appleChooserPanel) {
+        elements.appleChooserPanel.style.display = 'block';
+    } else {
+        const titleEl = document.getElementById('oauth-email-title');
+        if (titleEl) {
+            titleEl.textContent = `Sign In with ${provider === 'google' ? 'Google' : 'Apple'}`;
+        }
+        if (elements.oauthEmailInput) {
+            elements.oauthEmailInput.value = '';
+        }
+        if (elements.oauthEmailPanel) {
+            elements.oauthEmailPanel.style.display = 'block';
+        }
+    }
+}
+
+// Common helper to initiate code dispatch and navigate to OTP panel
+async function initiateOAuthCodeDispatch(email) {
+    try {
+        const response = await fetch(`${API_BASE}/auth/oauth/initiate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            state.oauthEmail = email;
+            state.oauthOtp = data.simulatedToastOtp;
+            
+            // Show verification notice with simulated OTP
+            showToast(`Verification code sent! MOCK CODE: ${data.simulatedToastOtp}`, 'success', 8000);
+            
+            // Render notice directly on OTP screen for user convenience
+            const otpSubtitle = document.getElementById('otp-subtitle');
+            if (otpSubtitle) {
+                otpSubtitle.innerHTML = `We sent a code to <strong>${email}</strong>.<br><span style="color: var(--secondary); font-weight: bold;">Simulated Code: ${data.simulatedToastOtp}</span>`;
+            }
+            
+            // Reset input
+            elements.otpCode.value = '';
+            
+            // Hide choosers & email panel
+            if (elements.googleChooserPanel) elements.googleChooserPanel.style.display = 'none';
+            if (elements.appleChooserPanel) elements.appleChooserPanel.style.display = 'none';
+            if (elements.oauthEmailPanel) elements.oauthEmailPanel.style.display = 'none';
+            
+            // Transition to OTP screen
+            elements.otpPanel.style.display = 'block';
+        } else {
+            showToast('Failed to initiate login verification', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Authentication initialization failure', 'error');
+    }
+}
+
+// Handle email form submit during simulated OAuth
+async function handleOAuthEmailSubmit(e) {
+    e.preventDefault();
+    const email = elements.oauthEmailInput.value.trim();
+    if (!email) return;
+    
+    state.oauthSource = 'email';
+    await initiateOAuthCodeDispatch(email);
+}
+
+async function selectGoogleAccount(email, name, avatarClass, initials) {
+    state.oauthProvider = 'google';
+    state.oauthSource = 'chooser';
+    await initiateOAuthCodeDispatch(email);
+}
+
+async function selectAppleAccount(email, name) {
+    state.oauthProvider = 'apple';
+    state.oauthSource = 'chooser';
+    await initiateOAuthCodeDispatch(email);
+}
+
+function useAnotherGoogleAccount() {
+    state.oauthProvider = 'google';
+    state.oauthSource = 'chooser';
+    if (elements.googleChooserPanel) elements.googleChooserPanel.style.display = 'none';
+    
+    const titleEl = document.getElementById('oauth-email-title');
+    if (titleEl) {
+        titleEl.textContent = 'Sign In with Google';
+    }
+    if (elements.oauthEmailInput) {
+        elements.oauthEmailInput.value = '';
+    }
+    if (elements.oauthEmailPanel) {
+        elements.oauthEmailPanel.style.display = 'block';
+    }
+}
+
+function useAnotherAppleAccount() {
+    state.oauthProvider = 'apple';
+    state.oauthSource = 'chooser';
+    if (elements.appleChooserPanel) elements.appleChooserPanel.style.display = 'none';
+    
+    const titleEl = document.getElementById('oauth-email-title');
+    if (titleEl) {
+        titleEl.textContent = 'Sign In with Apple';
+    }
+    if (elements.oauthEmailInput) {
+        elements.oauthEmailInput.value = '';
+    }
+    if (elements.oauthEmailPanel) {
+        elements.oauthEmailPanel.style.display = 'block';
+    }
+}
+
+// Bind OAuth chooser actions globally for button click access
+window.startOAuthFlow = startOAuthFlow;
+window.selectGoogleAccount = selectGoogleAccount;
+window.selectAppleAccount = selectAppleAccount;
+window.useAnotherGoogleAccount = useAnotherGoogleAccount;
+window.useAnotherAppleAccount = useAnotherAppleAccount;
+
+// Handle OTP code verification submit
+async function handleOtpSubmit(e) {
+    e.preventDefault();
+    const code = elements.otpCode.value.trim();
+    const email = state.oauthEmail;
+    
+    if (!email || !code) return;
+    
+    try {
+        // 1. Verify code on backend AuthController
+        const response = await fetch(`${API_BASE}/auth/oauth/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+        });
+        
+        if (response.ok) {
+            // 2. Complete OAuth registration/login on UserController
+            const cleanUsername = email.split('@')[0] + '_' + state.oauthProvider;
+            const oauthResponse = await fetch(`${API_BASE}/users/oauth`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email,
+                    username: cleanUsername,
+                    provider: state.oauthProvider,
+                    avatar: "fa-popcorn|avatar-grad-1"
+                })
+            });
+            
+            if (oauthResponse.ok) {
+                const user = await oauthResponse.json();
+                const isNewUser = (user.preferredGenres == null || user.preferredGenres.length === 0);
+                
+                state.currentUser = user;
+                localStorage.setItem('cinematch_user', JSON.stringify(user));
+                
+                showToast(`Signed in successfully! Welcome, ${user.username}`, 'success');
+                closeModal(elements.authModal);
+                
+                // Hide panels for future openings
+                elements.otpPanel.style.display = 'none';
+                elements.loginPanel.style.display = 'block';
+                
+                updateUserUI();
+                await fetchWatchlist();
+                
+                // If new user, forward to onboarding wizard
+                if (isNewUser) {
+                    window.location.href = `onboarding.html?userId=${user.id}`;
+                } else {
+                    // Reload views
+                    if (state.activeView === 'dashboard') {
+                        renderDashboard();
+                    } else if (state.activeView === 'recommendations') {
+                        fetchRecommendations();
+                    }
+                }
+            } else {
+                const err = await oauthResponse.json();
+                showToast(err.message || 'OAuth user registration failed', 'error');
+            }
+        } else {
+            showToast('Incorrect verification code. Please try again.', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Verification submission failed', 'error');
+    }
+}
+
+// Open settings profile modal and populate values
+function openSettingsModal() {
+    if (!state.currentUser) return;
+    
+    // Pre-populate fields
+    elements.settingsUsername.value = state.currentUser.username || '';
+    elements.settingsEmail.value = state.currentUser.email || '';
+    
+    // Setup active avatar icon and gradient
+    const currentAvatar = state.currentUser.avatar || 'fa-popcorn|avatar-grad-1';
+    const [iconClass, gradientClass] = currentAvatar.split('|');
+    
+    document.querySelectorAll('.avatar-icon-option').forEach(el => {
+        if (el.getAttribute('data-icon') === iconClass) {
+            el.classList.add('active');
+        } else {
+            el.classList.remove('active');
+        }
+    });
+    
+    document.querySelectorAll('.avatar-gradient-option').forEach(el => {
+        if (el.getAttribute('data-grad') === gradientClass) {
+            el.classList.add('active');
+        } else {
+            el.classList.remove('active');
+        }
+    });
+    
+    updateAvatarPreview();
+    openModal(elements.settingsModal);
+}
+
+// Synchronize preview badge to selected selector classes
+function updateAvatarPreview() {
+    const activeIconEl = document.querySelector('.avatar-icon-option.active');
+    const activeGradEl = document.querySelector('.avatar-gradient-option.active');
+    
+    if (activeIconEl && activeGradEl) {
+        const iconClass = activeIconEl.getAttribute('data-icon');
+        const gradClass = activeGradEl.getAttribute('data-grad');
+        
+        const previewBadge = elements.settingsAvatarPreview;
+        if (previewBadge) {
+            previewBadge.className = `avatar-preview-badge ${gradClass}`;
+            previewBadge.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+        }
+    }
+}
+
+// Submit profile updates to UserControllerSettings
+async function handleSaveSettings(e) {
+    e.preventDefault();
+    if (!state.currentUser) return;
+    
+    const username = elements.settingsUsername.value.trim();
+    const email = elements.settingsEmail.value.trim();
+    
+    const activeIconEl = document.querySelector('.avatar-icon-option.active');
+    const activeGradEl = document.querySelector('.avatar-gradient-option.active');
+    
+    if (!username || !email || !activeIconEl || !activeGradEl) {
+        showToast('Please fill out all settings fields', 'error');
+        return;
+    }
+    
+    const iconClass = activeIconEl.getAttribute('data-icon');
+    const gradClass = activeGradEl.getAttribute('data-grad');
+    const avatarString = `${iconClass}|${gradClass}`;
+    
+    try {
+        const response = await fetch(`${API_BASE}/users/${state.currentUser.id}/settings`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username,
+                email,
+                avatar: avatarString
+            })
+        });
+        
+        if (response.ok) {
+            const updatedUser = await response.json();
+            
+            // Sync session
+            state.currentUser = updatedUser;
+            localStorage.setItem('cinematch_user', JSON.stringify(updatedUser));
+            
+            showToast('Settings saved successfully!', 'success');
+            closeModal(elements.settingsModal);
+            updateUserUI();
+            
+            // Refresh dashboard reviews and state
+            if (state.activeView === 'dashboard') {
+                renderDashboard();
+            }
+        } else {
+            const err = await response.json();
+            showToast(err.message || 'Failed to save settings changes', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Server profile update error', 'error');
     }
 }

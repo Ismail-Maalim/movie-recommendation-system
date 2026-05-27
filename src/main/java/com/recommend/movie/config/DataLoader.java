@@ -9,6 +9,8 @@ import com.recommend.movie.repository.EpisodeRepository;
 import com.recommend.movie.repository.ReviewRepository;
 import com.recommend.movie.repository.UserRepository;
 import com.recommend.movie.service.MovieService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -18,13 +20,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 @Component
 @SuppressWarnings("null")
 public class DataLoader implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
 
     private final MovieRepository movieRepository;
     private final UserRepository userRepository;
@@ -45,25 +51,30 @@ public class DataLoader implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("Initiating movies catalog synchronization from Oracle APEX...");
+        log.info("Initiating movies catalog synchronization from Oracle APEX...");
         try {
             movieService.syncMoviesFromOracle();
         } catch (Exception e) {
-            System.err.println("Oracle sync failed: " + e.getMessage());
+            log.error("Oracle sync failed: {}", e.getMessage());
         }
 
         if (movieRepository.count() == 0) {
-            System.out.println("Seeding database with default movies, users, and ratings (Oracle Sync Fallback)...");
+            log.info("Seeding database with default movies, users, and ratings (Oracle Sync Fallback)...");
             seedDefaultMoviesAndRatings();
         } else {
-            System.out.println("Movies are present in local repository (either synced from Oracle or already seeded).");
+            log.info("Movies are present in local repository (either synced from Oracle or already seeded).");
             if (userRepository.count() == 0) {
-                System.out.println("Seeding users...");
+                log.info("Seeding users...");
                 User alice = new User("alice", "alice@example.com", passwordEncoder.encode("password"), Arrays.asList("Sci-Fi", "Action"));
+                alice.setId(1L);
                 User bob = new User("bob", "bob@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Romance"));
+                bob.setId(2L);
                 User charlie = new User("charlie", "charlie@example.com", passwordEncoder.encode("password"), Arrays.asList("Crime", "Action"));
+                charlie.setId(3L);
                 User diana = new User("diana", "diana@example.com", passwordEncoder.encode("password"), Arrays.asList("Animation", "Fantasy"));
+                diana.setId(4L);
                 User ethan = new User("ethan", "ethan@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Thriller"));
+                ethan.setId(5L);
                 userRepository.saveAll(Arrays.asList(alice, bob, charlie, diana, ethan));
             }
         }
@@ -235,7 +246,7 @@ public class DataLoader implements CommandLineRunner {
 
         // Additional Movies and Shows requested by the user
         Movie duneI = new Movie(
-                "Dune I",
+                "Dune",
                 "Paul Atreides, a brilliant and gifted young man born into a great destiny beyond his understanding, must travel to the most dangerous planet in the universe to ensure the future of his family and his people.",
                 2021,
                 Arrays.asList("Sci-Fi", "Adventure", "Drama"),
@@ -246,7 +257,7 @@ public class DataLoader implements CommandLineRunner {
         ).withImdbRating(8.0);
 
         Movie duneII = new Movie(
-                "Dune II",
+                "Dune: Part Two",
                 "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
                 2024,
                 Arrays.asList("Sci-Fi", "Adventure", "Action"),
@@ -255,17 +266,6 @@ public class DataLoader implements CommandLineRunner {
                 "Denis Villeneuve",
                 "Timothée Chalamet, Zendaya, Rebecca Ferguson"
         ).withImdbRating(8.6);
-
-        Movie duneIII = new Movie(
-                "Dune III",
-                "The epic continuation of Paul Atreides' destiny as he navigates the complex political and religious consequences of his rule on Arrakis.",
-                2026,
-                Arrays.asList("Sci-Fi", "Adventure", "Drama"),
-                "https://image.tmdb.org/t/p/w500/b4wekkUaxExzOeGe7hKXzhnyXHt.jpg",
-                "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/5jnVGQXsc0oXLlWD9q6KuwacWQ2.jpg",
-                "Denis Villeneuve",
-                "Timothée Chalamet, Zendaya, Florence Pugh"
-        ).withImdbRating(8.2);
 
         Movie prometheus = new Movie(
                 "Prometheus",
@@ -556,7 +556,7 @@ public class DataLoader implements CommandLineRunner {
         Movie theGreatFlood = new Movie(
                 "The Great Flood",
                 "A scientific team in the future attempts to rescue key survivors during an apocalyptic flood that threatens all of humanity.",
-                2023,
+                2025,
                 Arrays.asList("Sci-Fi", "Action", "Drama"),
                 "https://image.tmdb.org/t/p/w500/sdkuOaiZf2Bfcr5zrQmdrXggSEe.jpg",
                 "https://image.tmdb.org/t/p/w1920_and_h800_multi_faces/b6VfIRoiIErOihQ3JXgWYhCJXDA.jpg",
@@ -601,7 +601,7 @@ public class DataLoader implements CommandLineRunner {
                 inception, interstellar, darkKnight, pulpFiction, matrix,
                 avatar, titanic, spiritedAway, godfather, laLaLand,
                 parasite, knivesOut, gladiator, avengersEndgame,
-                duneI, duneII, duneIII, prometheus, blacklist, personOfInterest,
+                duneI, duneII, prometheus, blacklist, personOfInterest,
                 moneyHeist, supacell, from, apex, orangeIsNewBlack, untouchable,
                 atlas, theCore, ghostRider, pandora, horizonLine, strangerThings,
                 threeSixtyFiveDays, nowhere, furiosa, angelEyes, rampage, legends,
@@ -612,10 +612,15 @@ public class DataLoader implements CommandLineRunner {
 
         // 2. Seed Users
         User alice = new User("alice", "alice@example.com", passwordEncoder.encode("password"), Arrays.asList("Sci-Fi", "Action"));
+        alice.setId(1L);
         User bob = new User("bob", "bob@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Romance"));
+        bob.setId(2L);
         User charlie = new User("charlie", "charlie@example.com", passwordEncoder.encode("password"), Arrays.asList("Crime", "Action"));
+        charlie.setId(3L);
         User diana = new User("diana", "diana@example.com", passwordEncoder.encode("password"), Arrays.asList("Animation", "Fantasy"));
+        diana.setId(4L);
         User ethan = new User("ethan", "ethan@example.com", passwordEncoder.encode("password"), Arrays.asList("Drama", "Thriller"));
+        ethan.setId(5L);
 
         userRepository.saveAll(Arrays.asList(alice, bob, charlie, diana, ethan));
 
@@ -689,19 +694,47 @@ public class DataLoader implements CommandLineRunner {
         reviewRepository.save(new Review(ethan.getId(), "ethan", dbGodfather.getId(), "The pinnacle of cinematic storytelling. Every shot, every line of dialogue is perfection. Marlon Brando's presence is legendary."));
         reviewRepository.save(new Review(diana.getId(), "diana", dbSpiritedAway.getId(), "Pure magic. The hand-drawn animation is gorgeous and the story is incredibly moving. Miyazaki is a genius."));
 
-        System.out.println("Default seeding completed successfully.");
+        log.info("Default seeding completed successfully.");
     }
 
     private void importMovieLensMovies() {
+        // Load TMDB posters mapping
+        Map<String, TmdbMovieInfo> tmdbMap = new HashMap<>();
+        try (java.io.InputStream tmdbIs = getClass().getResourceAsStream("/movies_tmdb.json")) {
+            if (tmdbIs != null) {
+                ObjectMapper mapper = new ObjectMapper();
+                tmdbMap = mapper.readValue(tmdbIs, new TypeReference<Map<String, TmdbMovieInfo>>() {});
+                log.info("Successfully loaded {} TMDB poster mappings from movies_tmdb.json", tmdbMap.size());
+            } else {
+                log.warn("movies_tmdb.json not found in classpath. Falling back to Unsplash placeholders.");
+            }
+        } catch (Exception e) {
+            log.error("Error reading movies_tmdb.json: {}", e.getMessage());
+        }
+
         try (java.io.InputStream is = getClass().getResourceAsStream("/movies.dat")) {
             if (is != null) {
-                System.out.println("Found movies.dat in classpath. Parsing and importing MovieLens dataset...");
+                log.info("Found movies.dat in classpath. Parsing and importing MovieLens dataset...");
                 java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8));
                 String line;
                 List<Movie> moviesToSave = new ArrayList<>();
                 
                 // Get existing movie titles & years in db to avoid duplicate insert
                 List<Movie> existingMovies = movieRepository.findAll();
+                boolean dbUpdated = false;
+                for (Movie m : existingMovies) {
+                    String oldTitle = m.getTitle();
+                    String cleanTitle = Movie.cleanTitle(oldTitle);
+                    if (oldTitle != null && !oldTitle.equals(cleanTitle)) {
+                        m.setTitle(cleanTitle);
+                        movieRepository.save(m);
+                        dbUpdated = true;
+                    }
+                }
+                if (dbUpdated) {
+                    existingMovies = movieRepository.findAll();
+                }
+                
                 Set<String> existingKeys = existingMovies.stream()
                         .map(m -> m.getTitle().toLowerCase() + "_" + m.getReleaseYear())
                         .collect(Collectors.toSet());
@@ -711,6 +744,7 @@ public class DataLoader implements CommandLineRunner {
                     String[] parts = line.split("::");
                     if (parts.length >= 3) {
                         try {
+                            String movieLensId = parts[0].trim();
                             String titleWithYear = parts[1].trim();
                             String genresStr = parts[2].trim();
                             
@@ -728,19 +762,85 @@ public class DataLoader implements CommandLineRunner {
                                     // ignore
                                 }
                             }
+                            title = Movie.cleanTitle(title);
                             
                             String key = title.toLowerCase() + "_" + year;
-                            if (existingKeys.contains(key)) {
-                                continue;
-                            }
-                            
-                            // Parse genres split by |
-                            List<String> genres = Arrays.asList(genresStr.split("\\|"));
-                            
-                            // Select background and poster based on primary genre
-                            String primaryGenre = genres.isEmpty() ? "Default" : genres.get(0);
-                            String poster = getUnsplashPoster(primaryGenre);
-                            String backdrop = getUnsplashBackdrop(primaryGenre);
+                            final String finalTitle = title;
+                            final int finalYear = year;
+                            List<Movie> matching = existingMovies.stream()
+                                     .filter(m -> m.getTitle().equalsIgnoreCase(finalTitle) && m.getReleaseYear() == finalYear)
+                                     .collect(Collectors.toList());
+                             
+                             // Parse genres split by |
+                             List<String> genres = Arrays.asList(genresStr.split("\\|"));
+                             
+                             // Select background, poster, director and cast
+                             String poster = null;
+                             String backdrop = null;
+                             String director = null;
+                             String cast = null;
+                             if (tmdbMap.containsKey(movieLensId)) {
+                                 TmdbMovieInfo info = tmdbMap.get(movieLensId);
+                                 if (info != null) {
+                                     poster = info.getPoster();
+                                     backdrop = info.getBackdrop();
+                                     director = info.getDirector();
+                                     cast = info.getCast();
+                                 }
+                             }
+                             
+                             if (poster == null || poster.trim().isEmpty()) {
+                                 String primaryGenre = genres.isEmpty() ? "Default" : genres.get(0);
+                                 poster = getUnsplashPoster(primaryGenre);
+                             }
+                             if (backdrop == null || backdrop.trim().isEmpty()) {
+                                 String primaryGenre = genres.isEmpty() ? "Default" : genres.get(0);
+                                 backdrop = getUnsplashBackdrop(primaryGenre);
+                             }
+                             if (director == null || director.trim().isEmpty()) {
+                                 director = "Unknown Director";
+                             }
+                             if (cast == null || cast.trim().isEmpty()) {
+                                 cast = "Cast unknown";
+                             }
+                             
+                             if (!matching.isEmpty()) {
+                                 for (Movie existing : matching) {
+                                     boolean updated = false;
+                                     if ("Unknown Director".equals(existing.getDirector()) && !"Unknown Director".equals(director)) {
+                                         existing.setDirector(director);
+                                         updated = true;
+                                     }
+                                     if ("Cast unknown".equals(existing.getCastMembers()) && !"Cast unknown".equals(cast)) {
+                                         existing.setCastMembers(cast);
+                                         updated = true;
+                                     }
+                                     if (poster != null && !poster.trim().isEmpty()) {
+                                         boolean hasPlaceholder = existing.getPosterUrl() == null || 
+                                                                  existing.getPosterUrl().trim().isEmpty() || 
+                                                                  existing.getPosterUrl().contains("unsplash.com");
+                                         boolean newIsReal = !poster.contains("unsplash.com");
+                                         if (hasPlaceholder || (newIsReal && !poster.equals(existing.getPosterUrl()))) {
+                                             existing.setPosterUrl(poster);
+                                             updated = true;
+                                         }
+                                     }
+                                     if (backdrop != null && !backdrop.trim().isEmpty()) {
+                                         boolean hasPlaceholder = existing.getBackdropUrl() == null || 
+                                                                  existing.getBackdropUrl().trim().isEmpty() || 
+                                                                  existing.getBackdropUrl().contains("unsplash.com");
+                                         boolean newIsReal = !backdrop.contains("unsplash.com");
+                                         if (hasPlaceholder || (newIsReal && !backdrop.equals(existing.getBackdropUrl()))) {
+                                             existing.setBackdropUrl(backdrop);
+                                             updated = true;
+                                         }
+                                     }
+                                     if (updated) {
+                                         moviesToSave.add(existing);
+                                     }
+                                 }
+                                 continue;
+                             }
                             
                             Movie movie = new Movie(
                                     title,
@@ -749,28 +849,28 @@ public class DataLoader implements CommandLineRunner {
                                     genres,
                                     poster,
                                     backdrop,
-                                    "Unknown Director",
-                                    "Cast unknown"
+                                    director,
+                                    cast
                             ).withImdbRating(7.0); // default rating
                             
                             moviesToSave.add(movie);
                         } catch (Exception e) {
-                            System.err.println("Error parsing MovieLens line: " + line + " - " + e.getMessage());
+                            log.error("Error parsing MovieLens line: {} - {}", line, e.getMessage());
                         }
                     }
                 }
                 
                 if (!moviesToSave.isEmpty()) {
                     movieRepository.saveAll(moviesToSave);
-                    System.out.println("Imported " + moviesToSave.size() + " MovieLens movies successfully.");
+                    log.info("Imported {} MovieLens movies successfully.", moviesToSave.size());
                 } else {
-                    System.out.println("All MovieLens movies from movies.dat are already imported.");
+                    log.info("All MovieLens movies from movies.dat are already imported.");
                 }
             } else {
-                System.err.println("movies.dat not found in resources directory!");
+                log.error("movies.dat not found in resources directory!");
             }
         } catch (Exception e) {
-            System.err.println("Error reading movies.dat: " + e.getMessage());
+            log.error("Error reading movies.dat: {}", e.getMessage());
         }
     }
 
@@ -865,7 +965,7 @@ public class DataLoader implements CommandLineRunner {
     }
 
     private void seedEpisodes() {
-        System.out.println("Checking and seeding episodes for all movies...");
+        log.info("Checking and seeding episodes for all movies...");
         Set<String> tvShows = new HashSet<>(Arrays.asList(
             "Stranger Things", "The Blacklist", "Person of Interest", "Money Heist",
             "Breaking Bad", "You", "Orange Is the New Black", "From", "Supacell"
@@ -913,10 +1013,26 @@ public class DataLoader implements CommandLineRunner {
         
         if (!episodesToSave.isEmpty()) {
             episodeRepository.saveAll(episodesToSave);
-            System.out.println("Seeded episodes for " + episodesToSave.size() + " movies/shows.");
+            log.info("Seeded episodes for {} movies/shows.", episodesToSave.size());
         } else {
-            System.out.println("All movies/shows already have episodes.");
+            log.info("All movies/shows already have episodes.");
         }
-        System.out.println("Episodes seeding complete.");
+        log.info("Episodes seeding complete.");
+    }
+
+    public static class TmdbMovieInfo {
+        private String poster;
+        private String backdrop;
+        private String director;
+        private String cast;
+
+        public String getPoster() { return poster; }
+        public void setPoster(String poster) { this.poster = poster; }
+        public String getBackdrop() { return backdrop; }
+        public void setBackdrop(String backdrop) { this.backdrop = backdrop; }
+        public String getDirector() { return director; }
+        public void setDirector(String director) { this.director = director; }
+        public String getCast() { return cast; }
+        public void setCast(String cast) { this.cast = cast; }
     }
 }

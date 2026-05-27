@@ -66,6 +66,10 @@ public class RecommendationService {
         this.watchlistRepository = watchlistRepository;
     }
 
+    public void evictCache(Long userId) {
+        apexCache.remove(userId);
+    }
+
     /**
      * Gets hybrid recommendations for a user.
      */
@@ -77,12 +81,21 @@ public class RecommendationService {
             return cached.recommendations.stream().limit(limit).collect(Collectors.toList());
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Local user not found"));
+        List<Rating> userRatings = ratingRepository.findByUserId(userId);
+        List<Movie> allMovies = movieRepository.findAll();
+
         // B. Check if Oracle APEX is on cooldown
         boolean apexOnCooldown = (System.currentTimeMillis() - lastApexFailureTime) < APEX_COOLDOWN_MS;
         if (!apexOnCooldown) {
             // Try fetching recommendations from Oracle APEX ORDS API
             try {
-                String url = apexApiUrl + "/recommend/" + userId;
+                if (user.getOracleUserId() == null) {
+                    throw new RuntimeException("Oracle user ID missing for local user: " + userId);
+                }
+                Long oracleUserId = user.getOracleUserId();
+                String url = apexApiUrl + "/recommend/" + oracleUserId;
                 System.out.println("Calling Oracle APEX REST API: " + url);
                 ApexRecommendationResponse response = restTemplate.getForObject(url, ApexRecommendationResponse.class);
                 if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
@@ -91,19 +104,13 @@ public class RecommendationService {
                         Optional<Movie> movieOpt = movieRepository.findById(item.getId());
                         if (movieOpt.isPresent()) {
                             Movie m = movieOpt.get();
-                            double rawScore = item.getRecommendationScore() != null ? item.getRecommendationScore() : 0.0;
                             
-                            // Map the raw recommendation score to a normalized score
-                            double normalizedScore = Math.min(1.0, rawScore / 15.0);
-                            int matchPercentage = (int) Math.min(99, Math.round(normalizedScore * 100));
-                            if (matchPercentage < 50) {
-                                matchPercentage = 50 + (int)(rawScore * 3) % 45;
-                            }
+                            int matchPercentage = calculateDynamicMatchPercentage(user, m, userRatings, allMovies);
                             
                             recommendations.add(new MovieRecommendation(
                                 m,
                                 "HYBRID (ORACLE APEX)",
-                                normalizedScore,
+                                item.getRecommendationScore() != null ? item.getRecommendationScore() : 0.0,
                                 matchPercentage,
                                 "Database-driven recommendation computed directly on your Oracle APEX instance."
                             ));
@@ -126,12 +133,7 @@ public class RecommendationService {
         }
 
         // Fallback: Local Java hybrid recommendation engine
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        List<Rating> userRatings = ratingRepository.findByUserId(userId);
         List<com.recommend.movie.model.WatchlistItem> watchlistItems = watchlistRepository.findByUserId(userId);
-        List<Movie> allMovies = movieRepository.findAll();
         
         Set<Long> ratedMovieIds = userRatings.stream()
                 .map(Rating::getMovieId)
@@ -160,7 +162,7 @@ public class RecommendationService {
         for (MovieRecommendation cb : cbRecs) {
             double weightedScore = cb.getScore() * weightContentBased;
             cb.setScore(weightedScore);
-            cb.setMatchPercentage((int) Math.min(99, Math.round(weightedScore * 100)));
+            cb.setMatchPercentage(calculateDynamicMatchPercentage(user, cb.getMovie(), userRatings, allMovies));
             hybridMap.put(cb.getMovie().getId(), cb);
         }
 
@@ -204,7 +206,6 @@ public class RecommendationService {
             for (MovieRecommendation rec : hybridMap.values()) {
                 double normalizedScore = rec.getScore() / totalWeight;
                 rec.setScore(normalizedScore);
-                rec.setMatchPercentage((int) Math.min(99, Math.round(normalizedScore * 100)));
             }
         }
 
@@ -215,7 +216,7 @@ public class RecommendationService {
             double ageDecay = Math.pow(decayFactor, Math.max(0, currentYear - movie.getReleaseYear()));
             double updatedScore = rec.getScore() * ageDecay;
             rec.setScore(updatedScore);
-            rec.setMatchPercentage((int) Math.min(99, Math.round(updatedScore * 100)));
+            rec.setMatchPercentage(calculateDynamicMatchPercentage(user, movie, userRatings, allMovies));
         }
 
         // Sort by score descending
@@ -354,9 +355,6 @@ public class RecommendationService {
         for (Rating r : allRatings) {
             itemVectors.computeIfAbsent(r.getMovieId(), k -> new HashMap<>()).put(r.getUserId(), r.getScore());
         }
-
-        // Compute movie map for easy lookup
-        Map<Long, Movie> movieMap = allMovies.stream().collect(Collectors.toMap(Movie::getId, m -> m));
 
         // Predict rating for each movie NOT rated by target user
         for (Movie movie : allMovies) {
@@ -604,6 +602,77 @@ public class RecommendationService {
             ));
         }
         return recommendations;
+    }
+
+    private int calculateDynamicMatchPercentage(User user, Movie movie, List<Rating> ratings, List<Movie> allMovies) {
+        // 1. Base score derived from movie's average rating (translates to 60-80% baseline)
+        double avgRating = movie.getAverageRating() > 0 ? movie.getAverageRating() : 3.5;
+        double baseScore = 60.0 + (avgRating / 5.0) * 20.0; // 60 to 80
+        
+        double genreBoost = 0.0;
+        // 2. Preferred genres boost (up to 10% max)
+        if (user.getPreferredGenres() != null && !user.getPreferredGenres().isEmpty()) {
+            int matches = 0;
+            for (String g : movie.getGenres()) {
+                for (String pref : user.getPreferredGenres()) {
+                    if (pref.equalsIgnoreCase(g)) {
+                        matches++;
+                        break;
+                    }
+                }
+            }
+            genreBoost = Math.min(10.0, matches * 4.0);
+        }
+        
+        // 3. User ratings boost based on stars given during onboarding (up to 12% max)
+        double ratingBoost = 0.0;
+        if (ratings != null && !ratings.isEmpty() && allMovies != null) {
+            // Map movieId to Movie for quick lookup
+            Map<Long, Movie> movieMap = new HashMap<>();
+            for (Movie am : allMovies) {
+                movieMap.put(am.getId(), am);
+            }
+            
+            double totalGenreRatingScore = 0.0;
+            int genreMatchCount = 0;
+            
+            for (Rating r : ratings) {
+                Movie ratedMovie = movieMap.get(r.getMovieId());
+                if (ratedMovie != null) {
+                    boolean sharesGenre = false;
+                    for (String g : movie.getGenres()) {
+                        for (String rg : ratedMovie.getGenres()) {
+                            if (g.equalsIgnoreCase(rg)) {
+                                sharesGenre = true;
+                                break;
+                            }
+                        }
+                        if (sharesGenre) break;
+                    }
+                    
+                    if (sharesGenre) {
+                        int stars = r.getScore();
+                        if (stars == 5) {
+                            totalGenreRatingScore += 3.0;
+                        } else if (stars == 4) {
+                            totalGenreRatingScore += 1.5;
+                        } else if (stars == 3) {
+                            totalGenreRatingScore += 0.5;
+                        } else if (stars <= 2) {
+                            totalGenreRatingScore -= 2.0;
+                        }
+                        genreMatchCount++;
+                    }
+                }
+            }
+            
+            if (genreMatchCount > 0) {
+                ratingBoost = Math.max(-15.0, Math.min(12.0, totalGenreRatingScore));
+            }
+        }
+        
+        int finalPercentage = (int) Math.round(baseScore + genreBoost + ratingBoost);
+        return Math.max(55, Math.min(98, finalPercentage));
     }
 
     private double calculateVectorNorm(Collection<Integer> values) {

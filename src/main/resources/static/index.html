@@ -67,8 +67,14 @@
                             <span class="user-role">Cinephile</span>
                         </div>
                     </div>
+                    <button class="btn-auth" id="btn-onboarding-trigger" style="border-color: var(--primary); font-size: 12px; padding: 6px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Customize Feed
+                    </button>
                     <button class="btn-auth" id="btn-pref-trigger" style="border-color: var(--secondary); font-size: 12px; padding: 6px;">
                         <i class="fa-solid fa-sliders"></i> Edit Favorites
+                    </button>
+                    <button class="btn-auth" id="btn-settings-trigger" style="border-color: var(--text-muted); font-size: 12px; padding: 6px;">
+                        <i class="fa-solid fa-gear"></i> Settings
                     </button>
                     <button class="btn-logout" id="btn-logout">Sign Out</button>
                 </div>
@@ -226,6 +232,35 @@
                     <span class="genre-pill" data-genre="Comedy">Comedy</span>
                     <span class="genre-pill" data-genre="Animation">Animation</span>
                 </div>
+
+                <!-- Advanced Filters & Sorting Row -->
+                <div class="discover-filters-row">
+                    <div class="filter-group">
+                        <label for="discover-sort"><i class="fa-solid fa-sort"></i> Sort By</label>
+                        <select id="discover-sort" class="filter-select">
+                            <option value="default">Default</option>
+                            <option value="recent">Recent (Newest First)</option>
+                            <option value="popular">Popularity (H2 Rating)</option>
+                            <option value="imdb">IMDb Score</option>
+                            <option value="az">Alphabetical (A-Z)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="discover-year"><i class="fa-solid fa-calendar-days"></i> Year / Era</label>
+                        <select id="discover-year" class="filter-select">
+                            <option value="all">All Years</option>
+                            <option value="2020s">Recent (2020s)</option>
+                            <option value="2010s">2010s</option>
+                            <option value="2000s">2000s</option>
+                            <option value="1990s">1990s</option>
+                            <option value="classic">80s & Older</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Search Guess Banner Container -->
+                <div id="search-guess-container" style="margin-bottom: 20px; display: none;"></div>
 
                 <div class="movie-grid" id="discover-grid">
                     <!-- Dynamic -->
@@ -390,13 +425,34 @@
                     </div>
                     <div class="form-group">
                         <label for="login-password">Password</label>
-                        <div class="input-wrapper">
+                        <div class="input-wrapper password-wrapper">
                             <i class="fa-solid fa-lock"></i>
                             <input type="password" id="login-password" placeholder="Enter 'password'" required>
+                            <i class="fa-regular fa-eye-slash toggle-password" id="toggle-login-password" style="position: absolute; right: 16px; left: auto; top: 50%; transform: translateY(-50%); z-index: 100; cursor: pointer; pointer-events: auto;" onclick="togglePasswordVisibility('login-password', this)"></i>
                         </div>
                     </div>
                     <button type="submit" class="btn-auth-submit">Sign In</button>
                 </form>
+                <div class="auth-divider">
+                    <span>OR</span>
+                </div>
+                <div class="oauth-buttons">
+                    <button class="btn-oauth google-btn" onclick="startOAuthFlow('google')">
+                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                        </svg>
+                        Google
+                    </button>
+                    <button class="btn-oauth apple-btn" onclick="startOAuthFlow('apple')">
+                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.16.65-2.88 1.47-.63.73-1.18 1.87-1.03 2.98 1.1.09 2.22-.58 2.92-1.39"/>
+                        </svg>
+                        Apple
+                    </button>
+                </div>
                 <p class="auth-switch">Don't have an account? <span id="switch-to-register">Register here</span></p>
             </div>
 
@@ -421,14 +477,162 @@
                     </div>
                     <div class="form-group">
                         <label for="register-password">Password</label>
-                        <div class="input-wrapper">
+                        <div class="input-wrapper password-wrapper">
                             <i class="fa-solid fa-lock"></i>
                             <input type="password" id="register-password" placeholder="Password" required>
+                            <i class="fa-regular fa-eye-slash toggle-password" id="toggle-register-password" style="position: absolute; right: 16px; left: auto; top: 50%; transform: translateY(-50%); z-index: 100; cursor: pointer; pointer-events: auto;" onclick="togglePasswordVisibility('register-password', this)"></i>
+                        </div>
+                        <div class="password-rules" id="register-password-rules">
+                            <span class="rule-item" id="rule-length"><i class="fa-regular fa-circle"></i> 8+ chars</span>
+                            <span class="rule-item" id="rule-upper"><i class="fa-regular fa-circle"></i> Uppercase</span>
+                            <span class="rule-item" id="rule-lower"><i class="fa-regular fa-circle"></i> Lowercase</span>
+                            <span class="rule-item" id="rule-digit"><i class="fa-regular fa-circle"></i> Digit</span>
+                            <span class="rule-item" id="rule-special"><i class="fa-regular fa-circle"></i> Special</span>
                         </div>
                     </div>
                     <button type="submit" class="btn-auth-submit">Create Account & Login</button>
                 </form>
+                <div class="auth-divider">
+                    <span>OR</span>
+                </div>
+                <div class="oauth-buttons">
+                    <button class="btn-oauth google-btn" onclick="startOAuthFlow('google')">
+                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                        </svg>
+                        Google
+                    </button>
+                    <button class="btn-oauth apple-btn" onclick="startOAuthFlow('apple')">
+                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.16.65-2.88 1.47-.63.73-1.18 1.87-1.03 2.98 1.1.09 2.22-.58 2.92-1.39"/>
+                        </svg>
+                        Apple
+                    </button>
+                </div>
                 <p class="auth-switch">Already registered? <span id="switch-to-login">Sign in instead</span></p>
+            </div>
+
+            <!-- Google Account Chooser Panel -->
+            <div id="google-chooser-panel" style="display: none;">
+                <div class="google-chooser-container">
+                    <svg class="google-logo-header" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                    </svg>
+                    <h2 class="google-chooser-title">Choose an account</h2>
+                    <p class="google-chooser-subtitle">to continue to CineMatch</p>
+                    
+                    <div class="google-accounts-list">
+                        <div class="google-account-item" onclick="selectGoogleAccount('ismail.maalim@gmail.com', 'Ismail Maalim', 'google-avatar-blue', 'I')">
+                            <div class="google-account-avatar google-avatar-blue">I</div>
+                            <div class="google-account-info">
+                                <span class="google-account-name">Ismail Maalim</span>
+                                <span class="google-account-email">ismail.maalim@gmail.com</span>
+                            </div>
+                        </div>
+                        <div class="google-account-item" onclick="selectGoogleAccount('zuery.dev@gmail.com', 'Zuery Dev', 'google-avatar-green', 'Z')">
+                            <div class="google-account-avatar google-avatar-green">Z</div>
+                            <div class="google-account-info">
+                                <span class="google-account-name">Zuery Dev</span>
+                                <span class="google-account-email">zuery.dev@gmail.com</span>
+                            </div>
+                        </div>
+                        <div class="google-account-item" onclick="selectGoogleAccount('guest.cinematch@gmail.com', 'Guest User', 'google-avatar-purple', 'G')">
+                            <div class="google-account-avatar google-avatar-purple">G</div>
+                            <div class="google-account-info">
+                                <span class="google-account-name">Guest User</span>
+                                <span class="google-account-email">guest.cinematch@gmail.com</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="google-use-another" onclick="useAnotherGoogleAccount()">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Use another account</span>
+                    </div>
+
+                    <p class="google-chooser-footer">
+                        To continue, Google will share your name, email address, language preference, and profile picture with CineMatch. See CineMatch's <a href="#">Privacy Policy</a> and <a href="#">Terms of Service</a>.
+                    </p>
+                </div>
+                <p class="auth-switch" style="margin-top: 15px;"><span id="cancel-google-chooser" style="color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-arrow-left"></i> Cancel and go back</span></p>
+            </div>
+
+            <!-- Apple Account Chooser Panel -->
+            <div id="apple-chooser-panel" style="display: none;">
+                <div class="google-chooser-container">
+                    <svg class="google-logo-header" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.16.65-2.88 1.47-.63.73-1.18 1.87-1.03 2.98 1.1.09 2.22-.58 2.92-1.39"/>
+                    </svg>
+                    <h2 class="google-chooser-title">Sign in with Apple ID</h2>
+                    <p class="google-chooser-subtitle">to continue to CineMatch</p>
+                    
+                    <div class="google-accounts-list">
+                        <div class="google-account-item" onclick="selectAppleAccount('ismail.maalim@icloud.com', 'Ismail Maalim')">
+                            <div class="google-account-avatar" style="background-color: #000; border: 1px solid var(--border-color);"><i class="fa-solid fa-apple-whole"></i></div>
+                            <div class="google-account-info">
+                                <span class="google-account-name">Ismail Maalim</span>
+                                <span class="google-account-email">ismail.maalim@icloud.com</span>
+                            </div>
+                        </div>
+                        <div class="google-account-item" onclick="selectAppleAccount('zuery.dev@icloud.com', 'Zuery Dev')">
+                            <div class="google-account-avatar" style="background-color: #000; border: 1px solid var(--border-color);"><i class="fa-solid fa-apple-whole"></i></div>
+                            <div class="google-account-info">
+                                <span class="google-account-name">Zuery Dev</span>
+                                <span class="google-account-email">zuery.dev@icloud.com</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="google-use-another" onclick="useAnotherAppleAccount()">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Use a different Apple ID</span>
+                    </div>
+
+                    <p class="google-chooser-footer">
+                        Your Apple ID information will be used to let you sign in securely. See CineMatch's <a href="#">Privacy Policy</a> and <a href="#">Terms of Service</a>.
+                    </p>
+                </div>
+                <p class="auth-switch" style="margin-top: 15px;"><span id="cancel-apple-chooser" style="color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-arrow-left"></i> Cancel and go back</span></p>
+            </div>
+
+            <!-- OAuth Email Panel -->
+            <div id="oauth-email-panel" style="display: none;">
+                <h2 class="auth-title" id="oauth-email-title">Sign In</h2>
+                <p class="auth-subtitle">Confirm your email address to connect your account.</p>
+                <form class="auth-form" id="oauth-email-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="oauth-email-input">Email Address</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-envelope"></i>
+                            <input type="email" id="oauth-email-input" placeholder="you@example.com" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-auth-submit">Continue</button>
+                </form>
+                <p class="auth-switch"><span id="cancel-oauth-email" style="color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-arrow-left"></i> Cancel and go back</span></p>
+            </div>
+
+            <!-- OTP Verification Panel -->
+            <div id="otp-panel" style="display: none;">
+                <h2 class="auth-title">Verify Your Email</h2>
+                <p class="auth-subtitle" id="otp-subtitle">We sent a verification code to your email.</p>
+                <form class="auth-form" id="otp-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="otp-code">Verification Code</label>
+                        <div class="input-wrapper" style="letter-spacing: 4px; font-weight: 700; text-align: center;">
+                            <i class="fa-solid fa-key" style="letter-spacing: normal;"></i>
+                            <input type="text" id="otp-code" placeholder="Enter 6-digit code" maxlength="6" style="text-align: center; font-size: 18px; font-weight: 700;" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-auth-submit">Verify & Login</button>
+                </form>
+                <p class="auth-switch"><span id="cancel-otp" style="color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-arrow-left"></i> Cancel and go back</span></p>
             </div>
         </div>
     </div>
@@ -544,9 +748,86 @@
         </div>
     </div>
 
+    <!-- SETTINGS MODAL -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-container auth-modal" style="max-width: 500px;">
+            <button class="modal-close-btn" id="btn-close-settings">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h2 class="auth-title">Account Settings</h2>
+            <p class="auth-subtitle">Customize your username, email, and choose your premium profile avatar.</p>
+
+            <form class="auth-form" id="settings-form" onsubmit="return false;">
+                <!-- Avatar Picker Box -->
+                <div class="avatar-selector-box">
+                    <div class="avatar-selector-header">
+                        <div class="avatar-preview-badge avatar-grad-1" id="settings-avatar-preview">
+                            <i class="fa-solid fa-popcorn"></i>
+                        </div>
+                        <div>
+                            <div class="avatar-picker-label">Select Profile Icon</div>
+                            <div class="avatar-picker-subtitle">Choose an icon and a matching gradient background</div>
+                        </div>
+                    </div>
+
+                    <!-- Icon Choices -->
+                    <div class="avatar-icons-grid">
+                        <div class="avatar-icon-option active" data-icon="fa-popcorn"><i class="fa-solid fa-popcorn"></i></div>
+                        <div class="avatar-icon-option" data-icon="fa-ticket"><i class="fa-solid fa-ticket"></i></div>
+                        <div class="avatar-icon-option" data-icon="fa-film"><i class="fa-solid fa-film"></i></div>
+                        <div class="avatar-icon-option" data-icon="fa-clapperboard"><i class="fa-solid fa-clapperboard"></i></div>
+                        <div class="avatar-icon-option" data-icon="fa-glasses"><i class="fa-solid fa-glasses"></i></div>
+                        <div class="avatar-icon-option" data-icon="fa-masks-theater"><i class="fa-solid fa-masks-theater"></i></div>
+                        <div class="avatar-icon-option" data-icon="fa-star"><i class="fa-solid fa-star"></i></div>
+                        <div class="avatar-icon-option" data-icon="fa-cat"><i class="fa-solid fa-cat"></i></div>
+                    </div>
+
+                    <!-- Gradient Color Choices -->
+                    <div class="avatar-gradients-grid">
+                        <div class="avatar-gradient-option avatar-grad-1 active" data-grad="avatar-grad-1"></div>
+                        <div class="avatar-gradient-option avatar-grad-2" data-grad="avatar-grad-2"></div>
+                        <div class="avatar-gradient-option avatar-grad-3" data-grad="avatar-grad-3"></div>
+                        <div class="avatar-gradient-option avatar-grad-4" data-grad="avatar-grad-4"></div>
+                        <div class="avatar-gradient-option avatar-grad-5" data-grad="avatar-grad-5"></div>
+                        <div class="avatar-gradient-option avatar-grad-6" data-grad="avatar-grad-6"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="settings-username">Username</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="settings-username" placeholder="Pick a username" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="settings-email">Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="settings-email" placeholder="you@example.com" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-auth-submit" style="margin-top: 10px; width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <!-- TOAST NOTIFICATION CONTAINER -->
     <div class="toast-container" id="toast-container"></div>
 
+    <!-- Global UI Helper Scripts -->
+    <script>
+        function togglePasswordVisibility(inputId, toggleEl) {
+            const input = document.getElementById(inputId);
+            if (input) {
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                toggleEl.className = isPassword ? 'fa-regular fa-eye toggle-password' : 'fa-regular fa-eye-slash toggle-password';
+            }
+        }
+    </script>
     <!-- Client-Side App Logic -->
     <script src="js/app.js"></script>
 </body>

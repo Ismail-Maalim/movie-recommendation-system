@@ -39,9 +39,25 @@ public class Movie {
     public Movie() {
     }
 
+    public static String cleanTitle(String rawTitle) {
+        if (rawTitle == null) return null;
+        String trimmed = rawTitle.trim();
+        String lower = trimmed.toLowerCase();
+        if (lower.endsWith(", the")) {
+            return "The " + trimmed.substring(0, trimmed.length() - 5).trim();
+        }
+        if (lower.endsWith(", a")) {
+            return "A " + trimmed.substring(0, trimmed.length() - 3).trim();
+        }
+        if (lower.endsWith(", an")) {
+            return "An " + trimmed.substring(0, trimmed.length() - 4).trim();
+        }
+        return trimmed;
+    }
+
     public Movie(String title, String description, int releaseYear, List<String> genres, 
                  String posterUrl, String backdropUrl, String director, String castMembers) {
-        this.title = title;
+        this.title = cleanTitle(title);
         this.description = description;
         this.releaseYear = releaseYear;
         this.genres = genres;
@@ -65,7 +81,7 @@ public class Movie {
     }
 
     public void setTitle(String title) {
-        this.title = title;
+        this.title = cleanTitle(title);
     }
 
     public String getDescription() {

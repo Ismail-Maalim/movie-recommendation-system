@@ -9,8 +9,10 @@ import java.util.List;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "oracle_user_id")
+    private Long oracleUserId;
 
     @Column(unique = true, nullable = false)
     private String username;
@@ -25,6 +27,10 @@ public class User {
     @CollectionTable(name = "user_preferences", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "preferred_genre")
     private List<String> preferredGenres = new ArrayList<>();
+
+    private String avatar = "fa-popcorn|avatar-grad-1";
+    private Boolean emailVerified = false;
+    private String oauthProvider;
 
     // Default Constructor
     public User() {
@@ -44,6 +50,14 @@ public class User {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getOracleUserId() {
+        return oracleUserId;
+    }
+
+    public void setOracleUserId(Long oracleUserId) {
+        this.oracleUserId = oracleUserId;
     }
 
     public String getUsername() {
@@ -76,5 +90,29 @@ public class User {
 
     public void setPreferredGenres(List<String> preferredGenres) {
         this.preferredGenres = preferredGenres;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified != null && emailVerified;
+    }
+
+    public void setEmailVerified(Boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
+    public String getOauthProvider() {
+        return oauthProvider;
+    }
+
+    public void setOauthProvider(String oauthProvider) {
+        this.oauthProvider = oauthProvider;
     }
 }

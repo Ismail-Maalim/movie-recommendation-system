@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMatch Onboarding | Customizing Your Feed</title>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style -->
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: radial-gradient(circle at center, #16122d 0%, #06060a 100%);
+            margin: 0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .onboarding-card {
+            width: 100%;
+            max-width: 750px;
+            background: rgba(18, 18, 31, 0.75);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .onboarding-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(139, 92, 246, 0.03) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .onboarding-movies-grid {
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="onboarding-card">
+        
+        <!-- Step Progress Header -->
+        <div class="onboarding-progress-header">
+            <div class="onboarding-step-indicator active" id="onboarding-step-ind-1">
+                <span class="step-num">1</span>
+                <span class="step-label">Genres</span>
+            </div>
+            <div class="onboarding-step-line" id="onboarding-step-line-1"></div>
+            <div class="onboarding-step-indicator" id="onboarding-step-ind-2">
+                <span class="step-num">2</span>
+                <span class="step-label">Ratings</span>
+            </div>
+            <div class="onboarding-step-line" id="onboarding-step-line-2"></div>
+            <div class="onboarding-step-indicator" id="onboarding-step-ind-3">
+                <span class="step-num">3</span>
+                <span class="step-label">Analyze</span>
+            </div>
+        </div>
+
+        <!-- STEP 1: SELECT GENRES -->
+        <div class="onboarding-step-panel active" id="onboarding-step-panel-1">
+            <h2 class="auth-title" style="text-align: center; font-size: 28px; margin-bottom: 8px;">Welcome to CineMatch!</h2>
+            <p class="auth-subtitle" style="text-align: center; margin-bottom: 35px;">Let's customize your profile. Select at least 3 genres you enjoy:</p>
+            
+            <div class="pref-grid" id="onboarding-genres-grid" style="margin-bottom: 35px;">
+                <div class="pref-checkbox-btn" data-genre="Sci-Fi"><i class="fa-solid fa-rocket"></i> Sci-Fi</div>
+                <div class="pref-checkbox-btn" data-genre="Action"><i class="fa-solid fa-burst"></i> Action</div>
+                <div class="pref-checkbox-btn" data-genre="Drama"><i class="fa-solid fa-masks-theater"></i> Drama</div>
+                <div class="pref-checkbox-btn" data-genre="Adventure"><i class="fa-solid fa-compass"></i> Adventure</div>
+                <div class="pref-checkbox-btn" data-genre="Thriller"><i class="fa-solid fa-skull"></i> Thriller</div>
+                <div class="pref-checkbox-btn" data-genre="Crime"><i class="fa-solid fa-handcuffs"></i> Crime</div>
+                <div class="pref-checkbox-btn" data-genre="Romance"><i class="fa-solid fa-heart"></i> Romance</div>
+                <div class="pref-checkbox-btn" data-genre="Comedy"><i class="fa-solid fa-face-laugh-beam"></i> Comedy</div>
+                <div class="pref-checkbox-btn" data-genre="Animation"><i class="fa-solid fa-palette"></i> Animation</div>
+                <div class="pref-checkbox-btn" data-genre="Fantasy"><i class="fa-solid fa-wand-sparkles"></i> Fantasy</div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn-auth-submit" id="btn-onboarding-next-1" style="width: auto; padding: 12px 30px;" disabled>
+                    Next: Rate Movies <i class="fa-solid fa-arrow-right" style="margin-left: 8px;"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 2: RATE STARTER MOVIES -->
+        <div class="onboarding-step-panel" id="onboarding-step-panel-2">
+            <h2 class="auth-title" style="text-align: center; font-size: 28px; margin-bottom: 8px;">Rate Starter Titles</h2>
+            <p class="auth-subtitle" style="text-align: center; margin-bottom: 25px;" id="onboarding-rate-subtitle">Rate at least 5 movies/TV shows to initialize your AI recommendations: (0/5 rated)</p>
+            
+            <div class="onboarding-movies-grid" id="onboarding-movies-grid">
+                <!-- Dynamic Grid of 12 seeding movies -->
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px;">
+                <button class="btn-secondary" id="btn-onboarding-prev-2" style="padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-main); border-radius: var(--radius-sm); cursor: pointer;">
+                    <i class="fa-solid fa-arrow-left" style="margin-right: 8px;"></i> Back
+                </button>
+                <button class="btn-auth-submit" id="btn-onboarding-next-2" style="width: auto; padding: 12px 30px;" disabled>
+                    Complete Onboarding <i class="fa-solid fa-check" style="margin-left: 8px;"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 3: COMPUTING ENGINE -->
+        <div class="onboarding-step-panel" id="onboarding-step-panel-3" style="text-align: center; padding: 40px 0;">
+            <div class="loader-circle-container">
+                <div class="loader-glow-ring"></div>
+                <i class="fa-solid fa-brain loader-brain-icon"></i>
+            </div>
+            <h2 class="auth-title" style="margin-top: 30px; font-size: 24px;">Configuring Your Feed...</h2>
+            <p class="auth-subtitle" id="onboarding-loader-status" style="margin-top: 10px; max-width: 420px; margin-left: auto; margin-right: auto;">Analyzing genre overlaps and similarity scores...</p>
+            
+            <div class="onboarding-progress-bar-wrapper">
+                <div class="onboarding-progress-bar-fill" id="onboarding-progress-fill"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Script logic -->
+    <script src="js/onboarding.js"></script>
+</body>
+</html>
