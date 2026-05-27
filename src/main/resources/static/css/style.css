@@ -3171,3 +3171,19 @@ body {
     }
 }
 
+/* RECENTLY ADDED BADGE STYLING */
+.recently-added-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 700;
+    color: #ffffff;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    z-index: 2;
+}

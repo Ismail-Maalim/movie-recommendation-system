@@ -756,11 +756,17 @@ function createMovieCard(movie, recommendation = null) {
         }
     }
 
+    let recentlyAddedBadgeHtml = '';
+    if (movie.releaseYear === 2026) {
+        recentlyAddedBadgeHtml = `<div class="recently-added-badge">Recently Added</div>`;
+    }
+
     card.innerHTML = `
         <div class="card-poster">
             <img src="${movie.posterUrl}" alt="${movie.title}" onerror="this.src='https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=500&q=80'">
             ${matchBadgeHtml}
             ${typeBadgeHtml}
+            ${recentlyAddedBadgeHtml}
             <div class="card-action-overlay">
                 <button class="card-action-btn ${inWatchlist ? 'active' : ''}" data-action="watchlist" title="Add to Watchlist">
                     <i class="fa-solid fa-bookmark"></i>
