@@ -214,4 +214,98 @@ public class UserServiceTest {
         );
         assertTrue(exception.getMessage().contains("fallback to local is disabled"));
     }
+
+    @Test
+    public void testRegisterOrLoginOAuth_ExistingUser() {
+        // Arrange
+        String email = "existing@example.com";
+        String username = "existing_oauth";
+        String provider = "google";
+        String avatar = "fa-star";
+
+        // Mock userRepository search
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
+
+        // Mock APEX search (userExistsOnApex = true)
+        UserService.ApexUserQueryResponse mockResponse = new UserService.ApexUserQueryResponse();
+        UserService.ApexUserItem mockItem = new UserService.ApexUserItem();
+        mockItem.setId(88L);
+        mockItem.setUsername(username);
+        mockItem.setEmail(email);
+        mockItem.setAvatar(avatar);
+        mockResponse.setItems(Collections.singletonList(mockItem));
+
+        when(restTemplate.getForObject(contains("/users?email="), eq(UserService.ApexUserQueryResponse.class)))
+                .thenReturn(mockResponse);
+
+        // Mock preferences call
+        UserService.ApexPreferencesResponse mockPrefs = new UserService.ApexPreferencesResponse();
+        mockPrefs.setItems(Collections.emptyList());
+        when(restTemplate.getForObject(contains("/preferences"), eq(UserService.ApexPreferencesResponse.class)))
+                .thenReturn(mockPrefs);
+
+        // Mock H2 save
+        User mockUser = new User(username, email, "encoded-pwd", Collections.emptyList());
+        mockUser.setId(88L);
+        when(userRepository.save(any(User.class))).thenReturn(mockUser);
+
+        // Act
+        User result = userService.registerOrLoginOAuth(email, username, provider, avatar);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(88L, result.getId());
+        verify(userRepository).save(any(User.class));
+        verify(restTemplate, never()).postForObject(contains("/register"), any(), any());
+    }
+
+    @Test
+    public void testRegisterOrLoginOAuth_NewUser() {
+        // Arrange
+        String email = "new@example.com";
+        String username = "new_oauth";
+        String provider = "apple";
+        String avatar = "fa-film";
+
+        // Mock userRepository search
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
+
+        // Mock APEX search (userExistsOnApex = false)
+        UserService.ApexUserQueryResponse emptyResponse = new UserService.ApexUserQueryResponse();
+        emptyResponse.setItems(Collections.emptyList());
+        when(restTemplate.getForObject(anyString(), eq(UserService.ApexUserQueryResponse.class)))
+                .thenReturn(emptyResponse);
+
+        // Mock APEX /register call
+        UserService.ApexRegisterResponse mockRegResponse = new UserService.ApexRegisterResponse();
+        mockRegResponse.setUserId(99L);
+        when(restTemplate.postForObject(contains("/register"), any(), eq(UserService.ApexRegisterResponse.class)))
+                .thenReturn(mockRegResponse);
+
+        // Mock validation query after register
+        UserService.ApexUserQueryResponse mockUserQuery = new UserService.ApexUserQueryResponse();
+        UserService.ApexUserItem mockItem = new UserService.ApexUserItem();
+        mockItem.setId(99L);
+        mockItem.setUsername(username);
+        mockItem.setEmail(email);
+        mockUserQuery.setItems(Collections.singletonList(mockItem));
+        when(restTemplate.getForObject(contains("/users/99"), eq(UserService.ApexUserQueryResponse.class)))
+                .thenReturn(mockUserQuery);
+
+        // Mock H2 save
+        User mockUser = new User(username, email, "encoded-pwd", Collections.emptyList());
+        mockUser.setId(99L);
+        when(userRepository.save(any(User.class))).thenReturn(mockUser);
+
+        // Act
+        User result = userService.registerOrLoginOAuth(email, username, provider, avatar);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(99L, result.getId());
+        verify(restTemplate).postForObject(contains("/register"), any(), eq(UserService.ApexRegisterResponse.class));
+        verify(userRepository).save(any(User.class));
+    }
 }

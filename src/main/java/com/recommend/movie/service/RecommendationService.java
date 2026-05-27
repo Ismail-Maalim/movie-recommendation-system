@@ -88,12 +88,9 @@ public class RecommendationService {
 
         // B. Check if Oracle APEX is on cooldown
         boolean apexOnCooldown = (System.currentTimeMillis() - lastApexFailureTime) < APEX_COOLDOWN_MS;
-        if (!apexOnCooldown) {
+        if (!apexOnCooldown && user.getOracleUserId() != null) {
             // Try fetching recommendations from Oracle APEX ORDS API
             try {
-                if (user.getOracleUserId() == null) {
-                    throw new RuntimeException("Oracle user ID missing for local user: " + userId);
-                }
                 Long oracleUserId = user.getOracleUserId();
                 String url = apexApiUrl + "/recommend/" + oracleUserId;
                 System.out.println("Calling Oracle APEX REST API: " + url);
@@ -129,7 +126,11 @@ public class RecommendationService {
                 System.err.println("Enforcing a 5-minute APEX endpoint cooldown. Falling back to local Java hybrid recommendation engine...");
             }
         } else {
-            System.out.println("Oracle APEX API is on cooldown due to recent failures. Bypassing directly to local Java engine.");
+            if (apexOnCooldown) {
+                System.out.println("Oracle APEX API is on cooldown due to recent failures. Bypassing directly to local Java engine.");
+            } else {
+                System.out.println("Oracle user ID missing for local user: " + userId + ". Bypassing APEX recommendation call.");
+            }
         }
 
         // Fallback: Local Java hybrid recommendation engine

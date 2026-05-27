@@ -271,51 +271,105 @@ public class UserService {
             return user;
         }
 
-        // Check if user exists on Oracle APEX before trying to register
+        // Correct structural check inside UserService.java
+        if (userExistsOnApex(email) || userExistsOnApexByUsername(username)) {
+            // Pull down existing profile metadata and map it into the session context
+            return loginExistingOAuthUser(email, username, provider, avatar); 
+        } else {
+            // Proceed with the registration payload insert only if the account is new
+            return executeApexRegistrationCall(email, username, provider, avatar);
+        }
+    }
+
+    public boolean userExistsOnApex(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+        return findUserOnApexByEmail(email) != null;
+    }
+
+    public boolean userExistsOnApexByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return false;
+        }
+        return findUserOnApexByUsername(username) != null;
+    }
+
+    private User loginExistingOAuthUser(String email, String username, String provider, String avatar) {
         ApexUserItem apexUser = findUserOnApexByEmail(email);
         if (apexUser == null) {
             apexUser = findUserOnApexByUsername(username);
         }
-
-        Long userId = null;
-        boolean isNewUser = true;
-
+        Long userId;
         if (apexUser != null && apexUser.getId() != null) {
             userId = apexUser.getId();
-            isNewUser = false;
             log.info("Found existing OAuth user on Oracle APEX. ID: {}, Username: {}", userId, apexUser.getUsername());
         } else {
-            String rawPassword = UUID.randomUUID().toString() + "aA1!";
-            Exception registerException = null;
+            userId = userRepository.findMaxId().orElse(5L) + 1;
+            log.warn("OAuth user marked as existing on APEX but could not retrieve ID. Fallback local ID: {}", userId);
+        }
 
+        List<String> prefs = new ArrayList<>(Arrays.asList("Sci-Fi", "Action"));
+        if (apexUser != null && apexUser.getId() != null) {
             try {
-                String url = apexApiUrl + "/register";
-                log.info("Registering OAuth user on Oracle APEX: {}", url);
-                
-                Map<String, String> payload = new HashMap<>();
-                payload.put("username", username);
-                payload.put("email", email);
-                payload.put("password", rawPassword);
-                
-                ApexRegisterResponse response = restTemplate.postForObject(url, payload, ApexRegisterResponse.class);
-                if (response != null && response.getUserId() != null) {
-                    userId = response.getUserId();
-                    log.info("Successfully registered OAuth user on Oracle APEX. ID: {}", userId);
-                    validateOracleRegistration(userId);
-                } else {
-                    registerException = new RuntimeException("Missing userId in Oracle APEX OAuth register response");
+                List<String> fetchedPrefs = fetchPreferredGenresFromApex(apexUser.getId());
+                if (fetchedPrefs != null && !fetchedPrefs.isEmpty()) {
+                    prefs = fetchedPrefs;
                 }
             } catch (Exception e) {
-                log.error("Failed to register OAuth user on Oracle APEX: {}", e.getMessage());
-                registerException = e;
+                log.warn("Failed to fetch preferences from APEX for existing OAuth user, using defaults: {}", e.getMessage());
             }
+        }
 
-            if (userId == null) {
-                if (!fallbackToLocal) {
-                    throw new RuntimeException("OAuth registration failed on Oracle APEX and fallback to local is disabled.", registerException);
-                }
-                userId = userRepository.findMaxId().orElse(5L) + 1;
+        User user = new User(username, email, passwordEncoder.encode(UUID.randomUUID().toString() + "aA1!"), prefs);
+        user.setId(userId);
+        user.setOauthProvider(provider);
+        user.setEmailVerified(true);
+        if (avatar != null && !avatar.trim().isEmpty()) {
+            user.setAvatar(avatar);
+        } else if (apexUser != null && apexUser.getAvatar() != null) {
+            user.setAvatar(apexUser.getAvatar());
+        }
+        
+        user.setOracleUserId(userId);
+
+        User savedUser = userRepository.save(user);
+        syncOAuthUserToApex(savedUser);
+        return savedUser;
+    }
+
+    private User executeApexRegistrationCall(String email, String username, String provider, String avatar) {
+        String rawPassword = UUID.randomUUID().toString() + "aA1!";
+        Long userId = null;
+        Exception registerException = null;
+
+        try {
+            String url = apexApiUrl + "/register";
+            log.info("Registering OAuth user on Oracle APEX: {}", url);
+            
+            Map<String, String> payload = new HashMap<>();
+            payload.put("username", username);
+            payload.put("email", email);
+            payload.put("password", rawPassword);
+            
+            ApexRegisterResponse response = restTemplate.postForObject(url, payload, ApexRegisterResponse.class);
+            if (response != null && response.getUserId() != null) {
+                userId = response.getUserId();
+                log.info("Successfully registered OAuth user on Oracle APEX. ID: {}", userId);
+                validateOracleRegistration(userId);
+            } else {
+                registerException = new RuntimeException("Missing userId in Oracle APEX OAuth register response");
             }
+        } catch (Exception e) {
+            log.error("Failed to register OAuth user on Oracle APEX: {}", e.getMessage());
+            registerException = e;
+        }
+
+        if (userId == null) {
+            if (!fallbackToLocal) {
+                throw new RuntimeException("OAuth registration failed on Oracle APEX and fallback to local is disabled.", registerException);
+            }
+            userId = userRepository.findMaxId().orElse(5L) + 1;
         }
 
         User user = new User(username, email, passwordEncoder.encode(UUID.randomUUID().toString() + "aA1!"), Arrays.asList("Sci-Fi", "Action"));
@@ -325,15 +379,14 @@ public class UserService {
         if (avatar != null) {
             user.setAvatar(avatar);
         }
-        user.setOracleUserId(userId);
+        if (registerException == null) {
+            user.setOracleUserId(userId);
+        }
         
         User savedUser = userRepository.save(user);
         syncOAuthUserToApex(savedUser);
         
-        if (isNewUser) {
-            emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getUsername());
-        }
-        
+        emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getUsername());
         return savedUser;
     }
 
