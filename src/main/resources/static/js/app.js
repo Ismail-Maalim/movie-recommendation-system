@@ -124,7 +124,7 @@ const elements = {
     
     // Settings Modal
     btnSettingsTrigger: document.getElementById('btn-settings-trigger'),
-    settingsModal: document.getElementById('settings-modal'),
+    settingsModal: document.getElementById('settings-drawer-overlay'),
     btnCloseSettings: document.getElementById('btn-close-settings'),
     settingsForm: document.getElementById('settings-form'),
     settingsUsername: document.getElementById('settings-username'),
@@ -339,7 +339,7 @@ function setupEventListeners() {
 
     // Close modals on clicking outside container
     window.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal-overlay')) {
+        if (e.target.classList.contains('modal-overlay') || e.target.classList.contains('drawer-overlay')) {
             closeModal(e.target);
         }
     });

@@ -1,5 +1,6 @@
 package com.recommend.movie.controller;
 
+import com.recommend.movie.service.EmailService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,8 +14,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @CrossOrigin(origins = "*")
 public class AuthController {
 
+    private final EmailService emailService;
+
     // Temporary storage matching Email -> OTP code
     private final Map<String, String> otpStorage = new ConcurrentHashMap<>();
+
+    public AuthController(EmailService emailService) {
+        this.emailService = emailService;
+    }
 
     @PostMapping("/oauth/initiate")
     public ResponseEntity<?> initiateOAuth(@RequestBody Map<String, String> request) {
@@ -26,6 +33,9 @@ public class AuthController {
         // Generate a cryptographically secure 6-digit verification code
         String secureOtp = String.format("%06d", new SecureRandom().nextInt(1000000));
         otpStorage.put(email, secureOtp);
+        
+        // Send the real OTP welcoming email
+        emailService.sendOtpEmail(email, secureOtp);
         
         // Return the OTP in the payload so the frontend toast engine can catch it 
         // (Simulating a secure transactional email dispatch)

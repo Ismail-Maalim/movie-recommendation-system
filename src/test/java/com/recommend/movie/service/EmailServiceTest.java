@@ -34,4 +34,21 @@ public class EmailServiceTest {
         emailService.sendWelcomeEmail("", "TestUser");
         verify(mailSender, never()).createMimeMessage();
     }
+
+    @Test
+    public void testSendOtpEmail_Success() {
+        MimeMessage mockMessage = mock(MimeMessage.class);
+        when(mailSender.createMimeMessage()).thenReturn(mockMessage);
+
+        emailService.sendOtpEmail("test@example.com", "123456");
+
+        verify(mailSender, times(1)).createMimeMessage();
+        verify(mailSender, times(1)).send(mockMessage);
+    }
+
+    @Test
+    public void testSendOtpEmail_EmptyEmail() {
+        emailService.sendOtpEmail("", "123456");
+        verify(mailSender, never()).createMimeMessage();
+    }
 }
