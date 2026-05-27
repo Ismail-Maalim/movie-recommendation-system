@@ -372,6 +372,12 @@ function setupEventListeners() {
 
     // Initialize onboarding event listeners
     setupOnboardingEventListeners();
+
+    // FAQ accordion init
+    setupFaqAccordion();
+
+    // CineBot AI agent assistant init
+    setupCineBot();
 }
 
 // Switch Views
@@ -2281,3 +2287,223 @@ async function handleSaveSettings(e) {
         showToast('Server profile update error', 'error');
     }
 }
+
+// FAQ ACCORDION INTERACTIVE BEHAVIOR
+function setupFaqAccordion() {
+    const questions = document.querySelectorAll('.faq-question');
+    questions.forEach(q => {
+        q.addEventListener('click', () => {
+            const item = q.parentElement;
+            const isActive = item.classList.contains('active');
+            
+            // Collapse all other FAQ items
+            document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('active'));
+            
+            // Toggle clicked item
+            if (!isActive) {
+                item.classList.add('active');
+            }
+        });
+    });
+}
+
+// CINEBOT AI AGENT ASSISTANT BEHAVIOR
+function setupCineBot() {
+    const btnToggle = document.getElementById('btn-cinebot-toggle');
+    const btnClose = document.getElementById('btn-cinebot-close');
+    const windowEl = document.getElementById('cinebot-window');
+    const inputEl = document.getElementById('cinebot-input');
+    const btnSend = document.getElementById('btn-cinebot-send');
+    const messagesEl = document.getElementById('cinebot-messages');
+    const chips = document.querySelectorAll('.cinebot-chip');
+
+    if (!btnToggle || !windowEl) return;
+
+    // Toggle Chat Window
+    btnToggle.addEventListener('click', () => {
+        windowEl.classList.toggle('active');
+        if (windowEl.classList.contains('active')) {
+            inputEl.focus();
+            scrollToBottom();
+        }
+    });
+
+    // Close Chat Window
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
+            windowEl.classList.remove('active');
+        });
+    }
+
+    // Send Message on click
+    if (btnSend) {
+        btnSend.addEventListener('click', handleSend);
+    }
+
+    // Send Message on Enter
+    if (inputEl) {
+        inputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSend();
+            }
+        });
+    }
+
+    // Suggestion chips
+    chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const text = chip.getAttribute('data-msg');
+            if (text) {
+                appendMessage(text, 'user');
+                sendMessageToApi(text);
+            }
+        });
+    });
+
+    function handleSend() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+        
+        inputEl.value = '';
+        appendMessage(text, 'user');
+        sendMessageToApi(text);
+    }
+
+    function appendMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `cinebot-msg ${sender}`;
+        
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'cinebot-bubble';
+        bubbleDiv.innerHTML = text;
+        
+        msgDiv.appendChild(bubbleDiv);
+        messagesEl.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function appendTypingIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'cinebot-msg bot typing-indicator-msg';
+        indicator.id = 'cinebot-typing-indicator';
+        
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'cinebot-bubble';
+        bubbleDiv.style.display = 'flex';
+        bubbleDiv.style.gap = '4px';
+        bubbleDiv.style.alignItems = 'center';
+        bubbleDiv.style.padding = '10px 14px';
+        bubbleDiv.innerHTML = '<span class="typing-dot" style="width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: typing-glow 1s infinite alternate 0.1s;"></span>' +
+                              '<span class="typing-dot" style="width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: typing-glow 1s infinite alternate 0.2s;"></span>' +
+                              '<span class="typing-dot" style="width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: typing-glow 1s infinite alternate 0.3s;"></span>';
+        
+        indicator.appendChild(bubbleDiv);
+        messagesEl.appendChild(indicator);
+        scrollToBottom();
+    }
+
+    function removeTypingIndicator() {
+        const indicator = document.getElementById('cinebot-typing-indicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+
+    function scrollToBottom() {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    async function sendMessageToApi(messageText) {
+        appendTypingIndicator();
+        
+        try {
+            const response = await fetch(`${API_BASE}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: messageText })
+            });
+
+            removeTypingIndicator();
+
+            if (response.ok) {
+                const data = await response.json();
+                
+                let botReply = data.reply;
+                appendMessage(botReply, 'bot');
+
+                if (data.suggestedMovies && data.suggestedMovies.length > 0) {
+                    data.suggestedMovies.forEach(movie => {
+                        const card = document.createElement('div');
+                        card.className = 'cinebot-movie-card-inline';
+                        card.onclick = () => {
+                            windowEl.classList.remove('active');
+                            showMovieDetails(movie);
+                        };
+
+                        const imgUrl = movie.posterUrl || 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=200&q=80';
+                        card.innerHTML = `
+                            <img src="${imgUrl}" alt="${movie.title}">
+                            <div class="cinebot-movie-card-inline-info">
+                                <span class="cinebot-movie-card-inline-title">${movie.title}</span>
+                                <span class="cinebot-movie-card-inline-meta">${movie.releaseYear} • ⭐ ${movie.imdbRating || movie.averageRating || 'N/A'}</span>
+                            </div>
+                        `;
+                        messagesEl.appendChild(card);
+                    });
+                    scrollToBottom();
+                }
+            } else {
+                appendFallbackReply(messageText);
+            }
+        } catch (err) {
+            console.error("Chat API error:", err);
+            removeTypingIndicator();
+            appendFallbackReply(messageText);
+        }
+    }
+
+    function appendFallbackReply(userMessage) {
+        const lower = userMessage.toLowerCase().trim();
+        let reply = "";
+        let matchedMovies = [];
+
+        if (lower.match(/\b(hi|hello|hey|yo)\b/)) {
+            reply = "Hi! I'm CineBot, your offline-mode assistant. Ask me about Sci-Fi, Action, Drama, Comedy, or check what's trending!";
+        } else if (lower.includes("trending") || lower.includes("popular")) {
+            reply = "Here are a few popular selections from the database:";
+            matchedMovies = state.moviesList.slice(0, 3);
+        } else if (lower.includes("sci-fi") || lower.includes("science fiction")) {
+            reply = "Here are some of our top Sci-Fi recommendations:";
+            matchedMovies = state.moviesList.filter(m => m.genres && m.genres.some(g => g.toLowerCase().includes("sci"))).slice(0, 3);
+        } else if (lower.includes("action")) {
+            reply = "Here are some action-packed favorites:";
+            matchedMovies = state.moviesList.filter(m => m.genres && m.genres.some(g => g.toLowerCase().includes("act"))).slice(0, 3);
+        } else {
+            reply = "CineBot is in local fallback mode. Try checking out our home dashboard recommendations!";
+            matchedMovies = state.moviesList.slice(0, 2);
+        }
+
+        appendMessage(reply, 'bot');
+        if (matchedMovies.length > 0) {
+            matchedMovies.forEach(movie => {
+                const card = document.createElement('div');
+                card.className = 'cinebot-movie-card-inline';
+                card.onclick = () => {
+                    windowEl.classList.remove('active');
+                    showMovieDetails(movie);
+                };
+                const imgUrl = movie.posterUrl || 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=200&q=80';
+                card.innerHTML = `
+                    <img src="${imgUrl}" alt="${movie.title}">
+                    <div class="cinebot-movie-card-inline-info">
+                        <span class="cinebot-movie-card-inline-title">${movie.title}</span>
+                        <span class="cinebot-movie-card-inline-meta">${movie.releaseYear} • ⭐ ${movie.imdbRating || movie.averageRating || 'N/A'}</span>
+                    </div>
+                `;
+                messagesEl.appendChild(card);
+            });
+            scrollToBottom();
+        }
+    }
+}
+

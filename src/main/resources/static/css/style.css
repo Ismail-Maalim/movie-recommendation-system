@@ -2375,3 +2375,396 @@ body {
     background: var(--primary);
 }
 
+/* FAQ ACCORDION SECTION */
+.faq-section-container {
+    margin-top: 60px;
+    padding-bottom: 40px;
+}
+
+.faq-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.faq-item {
+    border: 1px solid var(--glass-border);
+    background-color: var(--bg-surface);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.faq-item:hover {
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.faq-question {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 20px 24px;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    color: var(--text-main);
+    font-size: 16px;
+    font-weight: 600;
+    outline: none;
+    transition: var(--transition);
+}
+
+.faq-question:hover {
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.faq-question i {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.faq-item.active .faq-question i {
+    transform: rotate(180deg);
+    color: var(--secondary);
+}
+
+.faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+    padding: 0 24px;
+}
+
+.faq-item.active .faq-answer {
+    max-height: 200px;
+    padding: 0 24px 20px 24px;
+}
+
+.faq-answer p {
+    font-size: 14.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+/* CINEBOT WIDGET STYLING */
+.cinebot-widget {
+    position: fixed;
+    left: 290px;
+    bottom: 30px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.cinebot-launcher {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border: none;
+    color: white;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 20px var(--primary-glow);
+    transition: var(--transition);
+    position: relative;
+    outline: none;
+}
+
+.cinebot-launcher:hover {
+    transform: scale(1.08) rotate(5deg);
+    box-shadow: 0 8px 25px var(--primary-glow);
+}
+
+.cinebot-pulse {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0.4;
+    animation: pulse-glowing 2s infinite;
+    pointer-events: none;
+}
+
+@keyframes pulse-glowing {
+    0% {
+        transform: scale(1);
+        opacity: 0.4;
+    }
+    100% {
+        transform: scale(1.6);
+        opacity: 0;
+    }
+}
+
+.cinebot-window {
+    position: absolute;
+    bottom: 68px;
+    left: 0;
+    width: 360px;
+    height: 480px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cinebot-window.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+}
+
+.cinebot-header {
+    padding: 16px;
+    background: rgba(9, 9, 14, 0.7);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cinebot-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cinebot-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--secondary), var(--primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: white;
+    position: relative;
+    box-shadow: 0 0 10px var(--secondary-glow);
+}
+
+.cinebot-status-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--secondary);
+    border: 2px solid var(--bg-surface-light);
+}
+
+.cinebot-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.cinebot-status-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.cinebot-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.cinebot-close-btn:hover {
+    color: var(--text-main);
+}
+
+.cinebot-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cinebot-msg {
+    display: flex;
+    width: 100%;
+}
+
+.cinebot-msg.user {
+    justify-content: flex-end;
+}
+
+.cinebot-msg.bot {
+    justify-content: flex-start;
+}
+
+.cinebot-bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+
+.cinebot-msg.user .cinebot-bubble {
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: white;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+}
+
+.cinebot-msg.bot .cinebot-bubble {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    border-bottom-left-radius: 4px;
+}
+
+.cinebot-chips {
+    padding: 8px 12px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.cinebot-chips::-webkit-scrollbar {
+    display: none;
+}
+
+.cinebot-chip {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.cinebot-chip:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.cinebot-input-area {
+    padding: 10px 14px;
+    display: flex;
+    gap: 8px;
+    background: rgba(9, 9, 14, 0.5);
+    border-top: 1px solid var(--glass-border);
+}
+
+#cinebot-input {
+    flex: 1;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    color: var(--text-main);
+    font-size: 13px;
+    outline: none;
+    transition: var(--transition);
+}
+
+#cinebot-input:focus {
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+#btn-cinebot-send {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+#btn-cinebot-send:hover {
+    background: #7c3aed;
+    transform: scale(1.05);
+}
+
+/* Movie Recommendations Inside Chat */
+.cinebot-movie-card-inline {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    margin-top: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: left;
+}
+
+.cinebot-movie-card-inline:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.cinebot-movie-card-inline img {
+    width: 42px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.cinebot-movie-card-inline-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.cinebot-movie-card-inline-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.cinebot-movie-card-inline-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+

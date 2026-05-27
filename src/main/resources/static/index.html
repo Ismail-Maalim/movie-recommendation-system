@@ -196,6 +196,60 @@
 
                 </div>
 
+                <!-- FAQ Accordion Section -->
+                <div class="faq-section-container">
+                    <div class="section-header">
+                        <h3 class="section-title"><i class="fa-solid fa-circle-question" style="margin-right: 8px; color: var(--secondary);"></i>Frequently Asked Questions</h3>
+                    </div>
+                    <div class="faq-accordion">
+                        <div class="faq-item">
+                            <button class="faq-question">
+                                <span>How does CineMatch generate movie recommendations?</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            <div class="faq-answer">
+                                <p>CineMatch runs a hybrid recommendation engine. It combines Collaborative Filtering (identifying users with matching tastes to suggest what they loved) and Content-Based Filtering (scoring movies according to your preferred genres) to achieve highly personalized matching percentages.</p>
+                            </div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-question">
+                                <span>Why are some ratings shown out of 5 stars and others out of 10?</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            <div class="faq-answer">
+                                <p>Your reviews and CineMatch community ratings are on a 5-star scale (1 to 5). Critical scores pulled from international platforms (like IMDb) are represented on their native 10-point scale for comparative reference.</p>
+                            </div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-question">
+                                <span>What is the benefit of signing in with Google or Apple ID?</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            <div class="faq-answer">
+                                <p>Syncing your identity secures your ratings, reviews, and watchlist history. It automatically links your data to the cloud database, allowing you to access your personal recommendations across any device seamlessly.</p>
+                            </div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-question">
+                                <span>How do I customize my recommendation feed?</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            <div class="faq-answer">
+                                <p>Click on your profile badge in the top-right header and select "Customize Feed" to re-run the onboarding wizard. You can select your favorite genres and rate starter titles to adjust the taste model at any time.</p>
+                            </div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-question">
+                                <span>Can I search for movies that are currently missing from the library?</span>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                            <div class="faq-answer">
+                                <p>Yes! When you search for a movie that isn't in our database, our system automatically guesses the title from the internet (using TMDB) and recommends similar movies from our library sharing the same genre.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </section>
 
             <!-- 2. DISCOVER VIEW -->
@@ -816,6 +870,56 @@
 
     <!-- TOAST NOTIFICATION CONTAINER -->
     <div class="toast-container" id="toast-container"></div>
+
+    <!-- CINEBOT AI AGENT ASSISTANT (BOTTOM-LEFT CHAT WIDGET) -->
+    <div class="cinebot-widget" id="cinebot-widget">
+        <!-- Floating Action Button -->
+        <button class="cinebot-launcher" id="btn-cinebot-toggle" title="Talk to CineBot AI">
+            <i class="fa-solid fa-robot"></i>
+            <span class="cinebot-pulse"></span>
+        </button>
+
+        <!-- Chat Window Panel -->
+        <div class="cinebot-window" id="cinebot-window">
+            <div class="cinebot-header">
+                <div class="cinebot-header-info">
+                    <div class="cinebot-avatar">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span class="cinebot-status-dot"></span>
+                    </div>
+                    <div>
+                        <h4 class="cinebot-title">CineBot</h4>
+                        <p class="cinebot-status-text">AI Movie Assistant • Online</p>
+                    </div>
+                </div>
+                <button class="cinebot-close-btn" id="btn-cinebot-close">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+            </div>
+            
+            <div class="cinebot-messages" id="cinebot-messages">
+                <div class="cinebot-msg bot">
+                    <div class="cinebot-bubble">
+                        Hello! I'm CineBot, your AI movie assistant. Ask me to recommend movies by genre, check what's trending, or help with any features! 🍿
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cinebot-chips" id="cinebot-chips">
+                <span class="cinebot-chip" data-msg="Recommend a Sci-Fi movie">Sci-Fi Recs</span>
+                <span class="cinebot-chip" data-msg="What are the trending movies?">What's Trending?</span>
+                <span class="cinebot-chip" data-msg="Show me latest releases">Latest 2026</span>
+                <span class="cinebot-chip" data-msg="How do my recommendations work?">AI Recs Info</span>
+            </div>
+
+            <div class="cinebot-input-area">
+                <input type="text" id="cinebot-input" placeholder="Ask CineBot something..." autocomplete="off">
+                <button id="btn-cinebot-send">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Global UI Helper Scripts -->
     <script>
