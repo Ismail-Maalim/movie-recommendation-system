@@ -2527,7 +2527,7 @@ function setupCineBot() {
                         card.className = 'cinebot-movie-card-inline';
                         card.onclick = () => {
                             windowEl.classList.remove('active');
-                            showMovieDetails(movie);
+                            openMovieDetails(movie);
                         };
 
                         const imgUrl = movie.posterUrl || 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=200&q=80';
@@ -2580,7 +2580,7 @@ function setupCineBot() {
                 card.className = 'cinebot-movie-card-inline';
                 card.onclick = () => {
                     windowEl.classList.remove('active');
-                    showMovieDetails(movie);
+                    openMovieDetails(movie);
                 };
                 const imgUrl = movie.posterUrl || 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=200&q=80';
                 card.innerHTML = `

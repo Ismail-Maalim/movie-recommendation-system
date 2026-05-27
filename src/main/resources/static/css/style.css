@@ -2607,12 +2607,12 @@ body {
 /* CINEBOT WIDGET STYLING */
 .cinebot-widget {
     position: fixed;
-    left: 290px;
+    right: 30px;
     bottom: 30px;
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: flex-end;
 }
 
 .cinebot-launcher {
@@ -2665,7 +2665,7 @@ body {
 .cinebot-window {
     position: absolute;
     bottom: 68px;
-    left: 0;
+    right: 0;
     width: 360px;
     height: 480px;
     background: var(--glass-bg);
