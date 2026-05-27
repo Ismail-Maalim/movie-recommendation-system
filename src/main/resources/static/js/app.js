@@ -157,8 +157,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
+    // Apply saved theme preference immediately
+    const savedTheme = localStorage.getItem('cinematch_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
     setupEventListeners();
     setupStarRating();
+    setupThemeToggle();
     
     // Attempt local storage auto-login
     const savedUser = localStorage.getItem('cinematch_user');
@@ -174,6 +179,11 @@ async function initApp() {
     // Load initial data
     await fetchMovies();
     renderDashboard();
+
+    // If discover is already the active view (e.g. URL param), re-render now that movies are loaded
+    if (state.activeView === 'discover') {
+        applyDiscoverFilters();
+    }
 
     // Check if view parameter is passed in URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -378,6 +388,31 @@ function setupEventListeners() {
 
     // CineBot AI agent assistant init
     setupCineBot();
+
+    // Nav Drawer Toggle
+    const btnNavToggle = document.getElementById('btn-nav-toggle');
+    const btnNavClose = document.getElementById('btn-nav-close');
+    const navDrawer = document.getElementById('nav-drawer');
+    const navOverlay = document.getElementById('nav-drawer-overlay');
+
+    function openNavDrawer() {
+        if (navDrawer) navDrawer.classList.add('open');
+        if (navOverlay) navOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeNavDrawer() {
+        if (navDrawer) navDrawer.classList.remove('open');
+        if (navOverlay) navOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    if (btnNavToggle) btnNavToggle.addEventListener('click', openNavDrawer);
+    if (btnNavClose) btnNavClose.addEventListener('click', closeNavDrawer);
+    if (navOverlay) navOverlay.addEventListener('click', closeNavDrawer);
+
+    // Close drawer after nav item click
+    elements.navItems.forEach(item => {
+        item.addEventListener('click', closeNavDrawer);
+    });
 }
 
 // Switch Views
@@ -418,7 +453,18 @@ function switchView(viewName) {
         document.querySelector('.genre-pill[data-genre="all"]').classList.add('active');
         if (elements.discoverSort) elements.discoverSort.value = 'default';
         if (elements.discoverYear) elements.discoverYear.value = 'all';
-        renderDiscover(state.moviesList);
+        
+        if (state.moviesList.length === 0) {
+            // Movies not yet loaded — show loading indicator and wait
+            elements.discoverGrid.innerHTML = '<div class="no-reviews"><i class="fa-solid fa-spinner fa-spin" style="font-size:28px;color:var(--primary);"></i><p style="margin-top:14px;color:var(--text-muted);">Loading movies catalog...</p></div>';
+            fetchMovies().then(() => {
+                if (state.activeView === 'discover') {
+                    applyDiscoverFilters();
+                }
+            });
+        } else {
+            renderDiscover(state.moviesList);
+        }
     } else if (viewName === 'recommendations') {
         fetchRecommendations();
     } else if (viewName === 'watchlist') {
@@ -1620,6 +1666,7 @@ function showToast(message, type = 'success') {
     
     let icon = 'fa-circle-check';
     if (type === 'error') icon = 'fa-triangle-exclamation';
+    if (type === 'info') icon = 'fa-circle-info';
     
     toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
     elements.toastContainer.appendChild(toast);
@@ -2286,6 +2333,37 @@ async function handleSaveSettings(e) {
         console.error(err);
         showToast('Server profile update error', 'error');
     }
+}
+
+// THEME TOGGLE (LIGHT / DARK)
+function setupThemeToggle() {
+    const btnToggle = document.getElementById('btn-theme-toggle');
+    if (!btnToggle) return;
+
+    // Sync icon state with current theme
+    function syncThemeIcon() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const moonIcon = btnToggle.querySelector('.icon-moon');
+        const sunIcon = btnToggle.querySelector('.icon-sun');
+        if (currentTheme === 'light') {
+            if (moonIcon) moonIcon.style.display = 'none';
+            if (sunIcon) sunIcon.style.display = 'block';
+        } else {
+            if (moonIcon) moonIcon.style.display = 'block';
+            if (sunIcon) sunIcon.style.display = 'none';
+        }
+    }
+
+    syncThemeIcon();
+
+    btnToggle.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('cinematch_theme', next);
+        syncThemeIcon();
+        showToast(next === 'light' ? '☀️ Light mode on' : '🌙 Dark mode on', 'info');
+    });
 }
 
 // FAQ ACCORDION INTERACTIVE BEHAVIOR

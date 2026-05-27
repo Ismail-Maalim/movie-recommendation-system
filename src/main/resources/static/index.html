@@ -11,16 +11,28 @@
 </head>
 <body>
 
+    <!-- Nav Drawer Overlay Backdrop -->
+    <div class="nav-drawer-overlay" id="nav-drawer-overlay"></div>
+
     <div class="app-container">
         
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <div class="logo-container">
+        <!-- RIGHT-SIDE NAV DRAWER -->
+        <aside class="sidebar" id="nav-drawer">
+            <!-- Close Button -->
+            <button class="drawer-close-btn" id="btn-nav-close" title="Close menu">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Logo -->
+            <div class="logo-container" style="margin-bottom: 8px; margin-top: 8px;">
                 <div class="logo-icon">
                     <i class="fa-solid fa-wand-magic-sparkles" style="color: white;"></i>
                 </div>
                 <h1 class="logo-text">CineMatch</h1>
             </div>
+
+            <div class="sidebar-divider"></div>
+            <p class="drawer-nav-label">Navigation</p>
 
             <nav>
                 <ul class="nav-menu">
@@ -51,6 +63,8 @@
                 </ul>
             </nav>
 
+            <div class="sidebar-divider" style="margin-top: auto;"></div>
+            <p style="font-size: 11px; color: var(--text-dimmed); text-align: center; padding: 0 8px;">CineMatch &copy; 2026</p>
 
         </aside>
 
@@ -68,7 +82,14 @@
                         <i class="fa-regular fa-bell"></i>
                         <span class="badge"></span>
                     </div>
-                    <!-- Moved Profile & Login Area -->
+
+                    <!-- Theme Toggle Button -->
+                    <button class="btn-theme-toggle" id="btn-theme-toggle" title="Toggle light/dark theme">
+                        <i class="fa-solid fa-moon icon-moon"></i>
+                        <i class="fa-solid fa-sun icon-sun"></i>
+                    </button>
+
+                    <!-- Profile & Login Area -->
                     <div id="user-profile-section">
                         <!-- If Logged Out -->
                         <div id="logged-out-view" style="display: flex; align-items: center;">
@@ -84,6 +105,11 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Hamburger Nav Toggle Button -->
+                    <button class="btn-nav-toggle" id="btn-nav-toggle" title="Open navigation menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
                 </div>
             </header>
 
