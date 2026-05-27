@@ -63,7 +63,21 @@
                 </ul>
             </nav>
 
-            <div class="sidebar-divider" style="margin-top: auto;"></div>
+            <div class="theme-toggle-wrapper">
+                <span class="theme-toggle-title">Theme</span>
+                <div class="theme-toggle-stacked">
+                    <button class="theme-option" id="theme-dark" data-theme="dark">
+                        <i class="fa-solid fa-moon"></i>
+                        <span>Dark</span>
+                    </button>
+                    <button class="theme-option" id="theme-light" data-theme="light">
+                        <i class="fa-solid fa-sun"></i>
+                        <span>Light</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-divider"></div>
             <p style="font-size: 11px; color: var(--text-dimmed); text-align: center; padding: 0 8px;">CineMatch &copy; 2026</p>
 
         </aside>
@@ -83,11 +97,7 @@
                         <span class="badge"></span>
                     </div>
 
-                    <!-- Theme Toggle Button -->
-                    <button class="btn-theme-toggle" id="btn-theme-toggle" title="Toggle light/dark theme">
-                        <i class="fa-solid fa-moon icon-moon"></i>
-                        <i class="fa-solid fa-sun icon-sun"></i>
-                    </button>
+
 
                     <!-- Profile & Login Area -->
                     <div id="user-profile-section">

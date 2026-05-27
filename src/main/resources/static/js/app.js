@@ -20,7 +20,8 @@ const state = {
     watchlist: [],
     currentMovie: null,
     activeView: 'dashboard',
-    selectedPrefGenres: new Set()
+    selectedPrefGenres: new Set(),
+    isLoadingMovies: true
 };
 
 // DOM Elements
@@ -474,6 +475,7 @@ function switchView(viewName) {
 
 // Fetch Movies
 async function fetchMovies() {
+    state.isLoadingMovies = true;
     try {
         const response = await fetch(`${API_BASE}/movies`);
         if (response.ok) {
@@ -484,6 +486,8 @@ async function fetchMovies() {
     } catch (e) {
         console.error(e);
         showToast('Server connection failed', 'error');
+    } finally {
+        state.isLoadingMovies = false;
     }
 }
 
@@ -719,6 +723,10 @@ function renderWatchlist() {
 // Generic Movies Grid Builder
 function renderMoviesGrid(container, movies) {
     container.innerHTML = '';
+    if (state.isLoadingMovies) {
+        container.innerHTML = '<div class="no-reviews"><i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i><p>Loading movies catalog...</p></div>';
+        return;
+    }
     if (movies.length === 0) {
         container.innerHTML = '<div class="no-reviews"><p>No movies matched your search criteria.</p></div>';
         return;
@@ -2337,32 +2345,36 @@ async function handleSaveSettings(e) {
 
 // THEME TOGGLE (LIGHT / DARK)
 function setupThemeToggle() {
-    const btnToggle = document.getElementById('btn-theme-toggle');
-    if (!btnToggle) return;
+    const btnDark = document.getElementById('theme-dark');
+    const btnLight = document.getElementById('theme-light');
+    if (!btnDark || !btnLight) return;
 
-    // Sync icon state with current theme
-    function syncThemeIcon() {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-        const moonIcon = btnToggle.querySelector('.icon-moon');
-        const sunIcon = btnToggle.querySelector('.icon-sun');
-        if (currentTheme === 'light') {
-            if (moonIcon) moonIcon.style.display = 'none';
-            if (sunIcon) sunIcon.style.display = 'block';
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('cinematch_theme', theme);
+        
+        // Update active class on buttons
+        if (theme === 'light') {
+            btnLight.classList.add('active');
+            btnDark.classList.remove('active');
         } else {
-            if (moonIcon) moonIcon.style.display = 'block';
-            if (sunIcon) sunIcon.style.display = 'none';
+            btnDark.classList.add('active');
+            btnLight.classList.remove('active');
         }
     }
 
-    syncThemeIcon();
+    // Load initial theme
+    const savedTheme = localStorage.getItem('cinematch_theme') || 'dark';
+    setTheme(savedTheme);
 
-    btnToggle.addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme') || 'dark';
-        const next = current === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('cinematch_theme', next);
-        syncThemeIcon();
-        showToast(next === 'light' ? '☀️ Light mode on' : '🌙 Dark mode on', 'info');
+    btnDark.addEventListener('click', () => {
+        setTheme('dark');
+        showToast('🌙 Dark mode on', 'info');
+    });
+
+    btnLight.addEventListener('click', () => {
+        setTheme('light');
+        showToast('☀️ Light mode on', 'info');
     });
 }
 
