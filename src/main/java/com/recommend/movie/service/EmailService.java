@@ -33,7 +33,7 @@ public class EmailService {
 
             helper.setTo(toEmail);
             helper.setSubject("Welcome to CineMatch! 🍿");
-            helper.setFrom("CineMatch Team <noreply@cinematch.com>");
+            helper.setFrom(resolveFromAddress());
 
             // ClickUp-style premium HTML newsletter
             String htmlContent = "<!DOCTYPE html>"
@@ -149,7 +149,7 @@ public class EmailService {
 
             helper.setTo(toEmail);
             helper.setSubject("Welcome to CineMatch! Verify Your Account 🍿");
-            helper.setFrom("CineMatch Team <noreply@cinematch.com>");
+            helper.setFrom(resolveFromAddress());
 
             // ClickUp-style premium HTML newsletter with OTP
             String htmlContent = "<!DOCTYPE html>"
@@ -236,5 +236,22 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Failed to send welcoming OTP email to {}: {}", toEmail, e.getMessage());
         }
+    }
+
+    private String resolveFromAddress() {
+        String fromAddress = "CineMatch Team <noreply@cinematch.com>";
+        if (mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl) {
+            org.springframework.mail.javamail.JavaMailSenderImpl impl = 
+                (org.springframework.mail.javamail.JavaMailSenderImpl) mailSender;
+            String configuredUser = impl.getUsername();
+            if (configuredUser == null || configuredUser.contains("your-email")) {
+                log.warn("ATTENTION: Spring Mail is using default placeholder 'your-email@gmail.com'. " +
+                         "To send real emails, you must configure the following environment variables on Railway: " +
+                         "SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD");
+            } else if (!configuredUser.trim().isEmpty()) {
+                fromAddress = configuredUser;
+            }
+        }
+        return fromAddress;
     }
 }

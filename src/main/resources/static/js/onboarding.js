@@ -1,5 +1,15 @@
 // CineMatch Onboarding Script
-const API_BASE = window.location.port === '5500' ? 'http://localhost:8080/api' : '/api';
+const API_BASE = (() => {
+    if (window.location.protocol === 'file:') {
+        return 'http://localhost:8080/api';
+    }
+    const localHosts = ['localhost', '127.0.0.1', '192.168.', '10.'];
+    const isLocal = localHosts.some(host => window.location.hostname.includes(host));
+    if (isLocal && window.location.port !== '8080') {
+        return 'http://localhost:8080/api';
+    }
+    return '/api';
+})();
 
 const state = {
     currentUser: null,
