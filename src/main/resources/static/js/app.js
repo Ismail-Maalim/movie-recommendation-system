@@ -528,9 +528,16 @@ async function fetchRecommendations() {
 function renderDashboard() {
     if (state.moviesList.length === 0) return;
 
-    // Set Spotlight Movie (default to highest rated)
+    // Set Spotlight Movie (randomly selected from 2026 releases, fallback to highest rated)
     const sorted = [...state.moviesList].sort((a, b) => b.averageRating - a.averageRating);
-    const spotlight = sorted[0];
+    const movies2026 = state.moviesList.filter(m => m.releaseYear === 2026);
+    let spotlight = null;
+    if (movies2026.length > 0) {
+        const randomIndex = Math.floor(Math.random() * movies2026.length);
+        spotlight = movies2026[randomIndex];
+    } else {
+        spotlight = sorted[0];
+    }
 
     // Setup Spotlight HTML
     elements.heroTitle.textContent = spotlight.title;
