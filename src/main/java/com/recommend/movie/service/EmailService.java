@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpClientErrorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,22 +37,22 @@ public class EmailService {
 
     private boolean sendRestEmail(String toEmail, String subject, String htmlContent) {
         if (resendApiKey != null && !resendApiKey.trim().isEmpty()) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + resendApiKey.trim());
+
+            String from = (emailFromAddress != null && !emailFromAddress.trim().isEmpty()) 
+                    ? emailFromAddress 
+                    : "CineMatch <onboarding@resend.dev>";
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("from", from);
+            payload.put("to", Collections.singletonList(toEmail));
+            payload.put("subject", subject);
+            payload.put("html", htmlContent);
+
             try {
                 log.info("Attempting to send email via Resend API to: {}", toEmail);
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.set("Authorization", "Bearer " + resendApiKey.trim());
-
-                String from = (emailFromAddress != null && !emailFromAddress.trim().isEmpty()) 
-                        ? emailFromAddress 
-                        : "CineMatch <onboarding@resend.dev>";
-
-                Map<String, Object> payload = new HashMap<>();
-                payload.put("from", from);
-                payload.put("to", Collections.singletonList(toEmail));
-                payload.put("subject", subject);
-                payload.put("html", htmlContent);
-
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
                 ResponseEntity<String> response = restTemplate.postForEntity("https://api.resend.com/emails", entity, String.class);
 
@@ -61,6 +62,29 @@ public class EmailService {
                 } else {
                     log.error("Failed to send email via Resend API. Response code: {}, Body: {}", response.getStatusCode(), response.getBody());
                 }
+            } catch (HttpClientErrorException.Forbidden e) {
+                String body = e.getResponseBodyAsString();
+                if (body != null && body.contains("only send testing emails to your own email address")) {
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})").matcher(body);
+                    if (m.find()) {
+                        String sandboxEmail = m.group(1);
+                        log.warn("Resend Sandbox restriction detected. Redirecting email for {} to owner email: {}", toEmail, sandboxEmail);
+                        try {
+                            payload.put("to", Collections.singletonList(sandboxEmail));
+                            payload.put("subject", "[Sandbox for " + toEmail + "] " + subject);
+                            
+                            HttpEntity<Map<String, Object>> retryEntity = new HttpEntity<>(payload, headers);
+                            ResponseEntity<String> retryResponse = restTemplate.postForEntity("https://api.resend.com/emails", retryEntity, String.class);
+                            if (retryResponse.getStatusCode().is2xxSuccessful()) {
+                                log.info("Email successfully redirected and sent to: {}", sandboxEmail);
+                                return true;
+                            }
+                        } catch (Exception retryEx) {
+                            log.error("Failed to send redirected sandbox email: {}", retryEx.getMessage());
+                        }
+                    }
+                }
+                log.error("Forbidden response from Resend API: {}", body);
             } catch (Exception e) {
                 log.error("Exception occurred while sending email via Resend API to {}: {}", toEmail, e.getMessage());
             }
