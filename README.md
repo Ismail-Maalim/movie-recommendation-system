@@ -90,7 +90,8 @@ mvn spring-boot:run
 ```
 
 ### 2. Access the Application
-*   **Web Dashboard**: [http://localhost:8080](http://localhost:8080)
+*   **Production Deployment**: [https://movie-recommendation-system-production-dab5.up.railway.app](https://movie-recommendation-system-production-dab5.up.railway.app)
+*   **Web Dashboard (Local)**: [http://localhost:8080](http://localhost:8080)
 *   **H2 Web Console**: [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
     *   **JDBC URL**: `jdbc:h2:file:./data/moviedb`
     *   **Username**: `sa`
