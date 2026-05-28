@@ -141,3 +141,15 @@ spring.mail.password=your-app-password
 
 ### AI Assistant (Chat)
 *   `POST /api/chat` - Interact with the CineBot AI Assistant.
+
+---
+
+## 🤝 Contributing & Welcoming Contributors
+
+Welcome to CineMatch! We are highly open to community contributions and support. Whether you want to:
+*   Add new recommender algorithm models (e.g., Pearson Correlation, Matrix Factorization).
+*   Optimize frontend design, responsiveness, or glassmorphism aesthetics.
+*   Improve database synchronization layers and caching modules.
+*   Resolve bug issues and expand the test suite coverage.
+
+Feel free to fork the repository, make your enhancements, and submit a Pull Request. We welcome developers of all skill levels! Happy coding! 🎬🍿
