@@ -79,8 +79,8 @@ public class DataLoader implements CommandLineRunner {
             }
         }
 
-        // Import MovieLens movies if present in movies.dat
-        importMovieLensMovies();
+        // Skip importing from movies.dat to optimize memory footprint and avoid OOM crashes
+        // importMovieLensMovies();
 
         // Seed episodes for all movies in the DB that don't have episodes yet
         seedEpisodes();
