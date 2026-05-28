@@ -1,6 +1,6 @@
 # CineMatch: Hybrid Movie Recommendation System
 
-CineMatch is a modern, full-stack **Hybrid Movie Recommendation System** that leverages User-Based Collaborative Filtering, Content-Based Filtering, and integration with **Oracle APEX REST (ORDS)** to deliver high-quality, personalized film suggestions. It features a premium, responsive glassmorphism dark UI with real-time ratings, reviews, watchlist management, and TMDB media integration.
+CineMatch is a modern, full-stack **Hybrid Movie Recommendation System** that leverages User-Based Collaborative Filtering, Content-Based Filtering, and integration with **Oracle APEX REST (ORDS)** to deliver high-quality, personalized film suggestions. It features a premium, responsive glassmorphism dark UI with real-time ratings, reviews, watchlist management, TMDB media integration, and a dedicated AI assistant.
 
 ---
 
@@ -11,15 +11,20 @@ CineMatch is a modern, full-stack **Hybrid Movie Recommendation System** that le
     *   **Local Java Engine (Fallback)**: Combines User-Based Collaborative Filtering (using Cosine Similarity on user rating vectors) and Content-Based Filtering (genre-based preference matching).
     *   **Cold-Start Mitigation**: Automatically serves popular movie recommendations for new users with no rating history.
 *   **Interactive Web UI**:
-    *   Sleek Dark Glassmorphism design with responsive grid layouts.
+    *   Sleek Dark/Light responsive glassmorphism design with responsive grid layouts.
+    *   **Collapsible Left Navigation Sidebar**: Clean left-side navigation for both authenticated users and guests, supporting collapse/drawer states on mobile screens.
+    *   **Stacked Theme Toggle**: Integrates a seamless stacked Dark/Light mode toggle directly inside the sidebar (active and functional for both members and guests).
     *   Dynamic spotlight movie banners and category/genre quick filters.
-    *   Real-time search and instant recommendation updates.
+    *   **Recently Added Badges**: Displays a vibrant emerald badge for new titles added to the library (within 2026).
     *   Interactive rating modals allowing users to leave star ratings and reviews.
     *   Watchlist management (Save for Later / Mark as Watched).
-*   **Robust Media Integration**:
-    *   Seeded with 47 popular movies and TV series (including *Breaking Bad*, *You*, *Inception*, etc.).
-    *   Real, high-resolution poster and backdrop assets sourced via TMDB (The Movie Database) CDN.
-    *   Official IMDb ratings displayed alongside local community scores.
+*   **CineBot AI Assistant**:
+    *   An interactive floating AI chatbot widget located at the **bottom-right** of the viewport.
+    *   Supports dynamic movie suggestions. Clicking any suggested movie card (or its poster) automatically collapses the chatbot and opens the detailed movie information modal.
+*   **Secure Authentication & Verification**:
+    *   Includes registration verification with automatically dispatched **Welcoming emails containing 6-digit OTP codes** to verify member sign-ups.
+*   **Optimized Cloud Footprint**:
+    *   Memory-optimized startup cycle that skips heavy raw local dataset parses (`movies.dat`) to prevent cloud container Out-Of-Memory (OOM) crashes, running reliably within constrained instances like Railway.
 *   **H2 Database Cache**:
     *   File-based local persistent caching to guarantee user session, watchlist, review, and rating persistence across restarts.
 
@@ -27,9 +32,9 @@ CineMatch is a modern, full-stack **Hybrid Movie Recommendation System** that le
 
 ## 🛠️ Tech Stack
 
-*   **Backend**: Spring Boot 3.x, Spring Data JPA, Hibernate, Maven
+*   **Backend**: Spring Boot 3.x, Spring Data JPA, Hibernate, Java Mail Sender
 *   **Database**: H2 Database (local file-based), Oracle Database (external via REST/ORDS)
-*   **Frontend**: HTML5, CSS3 (Custom Vanilla CSS with Glassmorphism variables), JavaScript (Vanilla ES6 SPA)
+*   **Frontend**: HTML5, CSS3 (Custom Vanilla CSS with HSL/Glassmorphism variables), JavaScript (Vanilla ES6 SPA)
 *   **APIs**: TMDB Image CDN, Oracle APEX ORDS
 
 ---
@@ -39,7 +44,7 @@ CineMatch is a modern, full-stack **Hybrid Movie Recommendation System** that le
 ```mermaid
 graph TD
     UI[HTML5/CSS3/JS Web UI] <--> Controller[Spring Boot REST Controllers]
-    Controller <--> Service[Recommendation & Movie Services]
+    Controller <--> Service[Recommendation, Movie, & Email Services]
     Service <--> H2[(Local H2 Database)]
     Service <--> APEX[Oracle APEX ORDS REST API]
     APEX <--> Oracle[(Oracle Database)]
@@ -52,20 +57,20 @@ graph TD
 ```text
 src/
 ├── main/
-│   ├── java/com/recommend/movie/
-│   │   ├── config/             # Database Seeding & Security Configs
-│   │   ├── controller/         # REST API Endpoints
+├── java/com/recommend/movie/
+│   │   ├── config/             # Database Seeding, Loader, & Security Configs
+│   │   ├── controller/         # REST API Endpoints (Movie, User, Chat, etc.)
 │   │   ├── dto/                # Data Transfer Objects
-│   │   ├── model/              # JPA Database Entities (Movie, User, Rating, etc.)
+│   │   ├── model/              # JPA Database Entities (Movie, User, Rating, Episode)
 │   │   ├── repository/         # Spring Data JPA Repositories
-│   │   ├── service/            # Hybrid Recommendation & Business Logic
+│   │   ├── service/            # Hybrid Recommendation, Email, & Movie Services
 │   │   └── MovieApplication.java
 │   └── resources/
 │       ├── static/             # Frontend Client Web Assets
 │       │   ├── css/style.css   # Custom Glassmorphism styles
 │       │   ├── js/app.js       # SPA Frontend Application Logic
 │       │   └── index.html      # Single Page Application entry point
-│       └── application.properties # Server, H2 DB, & Oracle APEX configs
+│       └── application.properties # Server, DB, Mail, & Oracle APEX configs
 └── pom.xml                     # Maven Dependencies
 ```
 
@@ -108,6 +113,12 @@ spring.datasource.password=
 
 # Oracle APEX ORDS API Integration
 oracle.apex.api.url=https://apex.oracle.com/ords/tr_a855_sql_s40/api
+
+# SMTP Email Configuration (For welcome emails and OTP verification)
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=your-email@gmail.com
+spring.mail.password=your-app-password
 ```
 
 ---
@@ -125,9 +136,7 @@ oracle.apex.api.url=https://apex.oracle.com/ords/tr_a855_sql_s40/api
 ### Users
 *   `GET /api/users/profile?userId={id}` - Fetch user details, ratings, watchlist, and preferred genres.
 *   `POST /api/users/register` - Register a new user profile.
+*   `POST /api/users/verify-otp` - Verify email using the OTP sent during registration.
 
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you'd like to implement new filtering metrics (e.g., Pearson Correlation) or build more advanced dashboards, please fork the repository and submit a pull request.
+### AI Assistant (Chat)
+*   `POST /api/chat` - Interact with the CineBot AI Assistant.
