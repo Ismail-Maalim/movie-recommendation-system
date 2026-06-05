@@ -113,13 +113,13 @@ spring.datasource.username=sa
 spring.datasource.password=
 
 # Oracle APEX ORDS API Integration
-oracle.apex.api.url=https://apex.oracle.com/ords/tr_a855_sql_s40/api
+oracle.apex.api.url=https://apex.oracle.com/ords/*********************/api
 
 # SMTP Email Configuration (For welcome emails and OTP verification)
 spring.mail.host=smtp.gmail.com
 spring.mail.port=587
-spring.mail.username=your-email@gmail.com
-spring.mail.password=your-app-password
+spring.mail.username=********@gmail.com
+spring.mail.password=**********
 ```
 
 ---
